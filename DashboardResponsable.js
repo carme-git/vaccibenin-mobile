@@ -1,92 +1,229 @@
-
 // DashboardResponsable.js — Écran principal du Responsable PEV
 // Chef du centre : supervise agents, valide comptes, coordonne séances
+// MODIFIÉ : données réelles via API Laravel + AsyncStorage + déconnexion
 
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  SafeAreaView, ScrollView, FlatList,
+  SafeAreaView, ScrollView, ActivityIndicator, Alert,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// DONNÉES FICTIVES — à remplacer par l'API Laravel
-// axios.get('/api/responsable/dashboard')
+//  Remplace par l'IP de ton PC (même IP que dans App.js)
+import CONFIG from './config';
+const API_URL = CONFIG.API_URL;
 
-const responsableData = {
-  nom: 'Dr. Espoir Dossou',
-  centre: 'CSA Akpakpa, Cotonou',
-  stats: {
-    totalAgents: 6,
-    agentsActifs: 5,
-    comptesAValider: 2,       // Nouveaux agents en attente de validation
-    seancesCeMois: 8,
-    enfantsSuivis: 312,
-    tauxCouverture: 78,       // % de couverture vaccinale du centre
-  },
-  // Liste des agents du centre avec leur statut
-  agents: [
-    { id: 1, nom: 'Dr. Adjoua Koffi', role: 'Agent', statut: 'actif', vaccinesTotal: 142, avatar: '👩‍⚕️' },
-    { id: 2, nom: 'Mathieu Agbodjan', role: 'Agent', statut: 'actif', vaccinesTotal: 98, avatar: '👨‍⚕️' },
-    { id: 3, nom: 'Rosine Hounsou', role: 'Agent', statut: 'actif', vaccinesTotal: 76, avatar: '👩‍⚕️' },
-    { id: 4, nom: 'Jonas Amoussou', role: 'Agent', statut: 'inactif', vaccinesTotal: 0, avatar: '👨‍⚕️' },
-  ],
-  // Comptes en attente de validation
-  comptesEnAttente: [
-    { id: 1, nom: 'Brice Tokplo', email: 'brice@csa.bj', date: '25 Mars 2026', avatar: '👨‍⚕️' },
-    { id: 2, nom: 'Aline Gbedo', email: 'aline@csa.bj', date: '26 Mars 2026', avatar: '👩‍⚕️' },
-  ],
-  // Prochaines séances de vaccination planifiées
-  seancesAVenir: [
-    { id: 1, titre: 'Séance BCG + Polio', date: '28 Mars 2026', heure: '08h00', lieu: 'Salle A', agentResponsable: 'Dr. Adjoua Koffi' },
-    { id: 2, titre: 'Séance Pentavalent', date: '02 Avr 2026', heure: '09h00', lieu: 'Salle B', agentResponsable: 'Mathieu Agbodjan' },
-    { id: 3, titre: 'Séance ROR', date: '10 Avr 2026', heure: '08h30', lieu: 'Salle A', agentResponsable: 'Rosine Hounsou' },
-  ],
-};
-
+// ─────────────────────────────────────────────
 // COMPOSANT PRINCIPAL
+// ─────────────────────────────────────────────
+export default function DashboardResponsable({ navigation, route }) {
 
-export default function DashboardResponsable({ navigation }) {
+  // Données reçues depuis l'écran de connexion
+  const { user, token } = route.params || {};
 
-  // Onglet actif : 'apercu', 'agents', ou 'seances'
-  // Permet de switcher entre les 3 vues sans changer d'écran
-  const [onglet, setOnglet] = useState('apercu');
+  // États locaux
+  const [stats, setStats]                   = useState(null);  // statistiques globales
+  const [agents, setAgents]                 = useState([]);    // liste des agents
+  const [comptesEnAttente, setComptesEnAttente] = useState([]); // comptes à valider
+  const [seances, setSeances]               = useState([]);    // séances planifiées
+  const [onglet, setOnglet]                 = useState('apercu'); // onglet actif
+  const [loading, setLoading]               = useState(true);  // spinner
+  const [erreur, setErreur]                 = useState('');    // message d'erreur
 
-  // FONCTION — Valider ou refuser un compte agent
-  
-  const gererCompte = (agent, action) => {
-    // action = 'valider' ou 'refuser'
-    const message = action === 'valider'
-      ? `Le compte de ${agent.nom} a été validé. Il peut maintenant se connecter.`
-      : `Le compte de ${agent.nom} a été refusé.`;
-    alert(message);
-    // TODO : axios.post('/api/responsable/valider-compte', { agentId: agent.id, action })
+  // Au chargement du composant → récupérer les données depuis Laravel
+  useEffect(() => {
+    chargerDonnees();
+  }, []);
+
+  // ─── APPEL API — Récupérer les données du tableau de bord responsable ───
+  const chargerDonnees = async () => {
+    try {
+      setLoading(true);
+      setErreur('');
+
+      // Récupérer le token depuis AsyncStorage si non passé en params
+      const tokenLocal = token || await AsyncStorage.getItem('token');
+
+      if (!tokenLocal) {
+        navigation.replace('Connexion');
+        return;
+      }
+
+      // Appel API → GET /api/responsable/dashboard
+      // Le token est envoyé dans le header Authorization (standard Sanctum)
+      const reponse = await fetch(`${API_URL}/responsable/dashboard`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${tokenLocal}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await reponse.json();
+
+      if (data.success) {
+        setStats(data.stats);                         // Statistiques globales
+        setAgents(data.agents);                       // Liste des agents
+        setComptesEnAttente(data.comptesEnAttente);   // Comptes à valider
+        setSeances(data.seances);                     // Séances planifiées
+      } else {
+        setErreur('Impossible de charger les données.');
+      }
+
+    } catch (err) {
+      console.error('Erreur API responsable:', err);
+      setErreur('Erreur de connexion au serveur.');
+    } finally {
+      setLoading(false); // Dans tous les cas, arrêter le spinner
+    }
   };
+
+  // ─── DÉCONNEXION ───
+  const seDeconnecter = async () => {
+    // Demander confirmation avant de déconnecter
+    Alert.alert(
+      'Déconnexion',
+      'Voulez-vous vraiment vous déconnecter ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Déconnecter',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // Appel API pour invalider le token côté Laravel
+              const tokenLocal = token || await AsyncStorage.getItem('token');
+              await fetch(`${API_URL}/logout`, {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${tokenLocal}`,
+                  'Accept': 'application/json',
+                },
+              });
+            } catch (e) {
+              // Même si l'API échoue, on déconnecte localement
+              console.log('Erreur logout API:', e);
+            }
+
+            // Supprimer la session locale
+            await AsyncStorage.removeItem('token');
+            await AsyncStorage.removeItem('role');
+            await AsyncStorage.removeItem('user');
+
+            // Retourner à l'écran de connexion
+            navigation.replace('Connexion');
+          },
+        },
+      ]
+    );
+  };
+
+  // ─── VALIDER OU REFUSER UN COMPTE AGENT ───
+  const gererCompte = async (agent, action) => {
+    // action = 'valider' ou 'refuser'
+    Alert.alert(
+      action === 'valider' ? 'Valider le compte' : 'Refuser le compte',
+      `Êtes-vous sûr de vouloir ${action} le compte de ${agent.nom} ?`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: action === 'valider' ? 'Valider' : 'Refuser',
+          style: action === 'valider' ? 'default' : 'destructive',
+          onPress: async () => {
+            try {
+              const tokenLocal = token || await AsyncStorage.getItem('token');
+
+              // Appel API → POST /api/responsable/valider-compte
+              const reponse = await fetch(`${API_URL}/responsable/valider-compte`, {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${tokenLocal}`,
+                  'Accept': 'application/json',
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ agentId: agent.id, action }),
+              });
+
+              const data = await reponse.json();
+
+              if (data.success) {
+                // Retirer le compte de la liste d'attente
+                setComptesEnAttente(prev => prev.filter(c => c.id !== agent.id));
+                Alert.alert('Succès', data.message);
+              } else {
+                Alert.alert('Erreur', data.message);
+              }
+            } catch (e) {
+              Alert.alert('Erreur', 'Impossible de traiter la demande.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // ─── AFFICHAGE PENDANT LE CHARGEMENT ───
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.centreEcran}>
+          <ActivityIndicator size="large" color="#1a3c2e" />
+          <Text style={styles.chargementTexte}>Chargement des données...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // ─── AFFICHAGE EN CAS D'ERREUR ───
+  if (erreur) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.centreEcran}>
+          <Text style={styles.erreurTexte}>⚠️ {erreur}</Text>
+          {/* Bouton pour réessayer */}
+          <TouchableOpacity style={styles.boutonReessayer} onPress={chargerDonnees}>
+            <Text style={styles.boutonReessayerTexte}>Réessayer</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="light" />
 
-      {/*  EN-TÊTE  */}
+      {/* EN-TÊTE VERT FONCÉ */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <View>
             <Text style={styles.role}>Responsable PEV</Text>
-            <Text style={styles.nomResponsable}>{responsableData.nom}</Text>
-            <Text style={styles.centre}>📍 {responsableData.centre}</Text>
+            {/* Nom du responsable récupéré depuis les params */}
+            <Text style={styles.nomResponsable}>{user?.prenom} {user?.nom}</Text>
+            <Text style={styles.centre}>📍 {user?.centre || 'Centre non défini'}</Text>
           </View>
-          <View style={styles.avatarContainer}>
-            <Text style={styles.avatarEmoji}>👨‍💼</Text>
+
+          {/* Boutons en haut à droite */}
+          <View style={styles.headerActions}>
+            <View style={styles.avatarContainer}>
+              <Text style={styles.avatarEmoji}>👨‍💼</Text>
+            </View>
+            {/* Bouton déconnexion */}
+            <TouchableOpacity style={styles.deconnexionBtn} onPress={seDeconnecter}>
+              <Text style={styles.deconnexionTexte}>⏻</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
-        {/*  ONGLETS DE NAVIGATION */}
+        {/* ONGLETS DE NAVIGATION */}
         {/* 3 onglets pour switcher entre les sections sans changer d'écran */}
         <View style={styles.onglets}>
           {[
             { id: 'apercu', label: '📊 Aperçu' },
             { id: 'agents', label: '👥 Agents' },
-            { id: 'seances', label: '📅 RDV en cours' },
+            { id: 'seances', label: '📅 RDV' },
           ].map((o) => (
             <TouchableOpacity
               key={o.id}
@@ -103,10 +240,10 @@ export default function DashboardResponsable({ navigation }) {
 
       <ScrollView style={styles.contenu} showsVerticalScrollIndicator={false}>
 
-        {/* 
+        {/*
             ONGLET 1 — APERÇU GÉNÉRAL
             Affiché seulement si onglet === 'apercu'
-             */}
+        */}
         {onglet === 'apercu' && (
           <View>
 
@@ -115,14 +252,14 @@ export default function DashboardResponsable({ navigation }) {
             <View style={styles.statsGrille}>
 
               <View style={[styles.statCarte, { borderLeftColor: '#1a6b3c' }]}>
-                <Text style={styles.statNombre}>{responsableData.stats.enfantsSuivis}</Text>
+                <Text style={styles.statNombre}>{stats?.enfantsSuivis || 0}</Text>
                 <Text style={styles.statLabel}>Enfants suivis</Text>
                 <Text style={styles.statEmoji}>👶</Text>
               </View>
 
               <View style={[styles.statCarte, { borderLeftColor: '#2563eb' }]}>
                 <Text style={[styles.statNombre, { color: '#2563eb' }]}>
-                  {responsableData.stats.tauxCouverture}%
+                  {stats?.tauxCouverture || 0}%
                 </Text>
                 <Text style={styles.statLabel}>Taux de couverture</Text>
                 <Text style={styles.statEmoji}>📈</Text>
@@ -130,7 +267,7 @@ export default function DashboardResponsable({ navigation }) {
 
               <View style={[styles.statCarte, { borderLeftColor: '#7c3aed' }]}>
                 <Text style={[styles.statNombre, { color: '#7c3aed' }]}>
-                  {responsableData.stats.totalAgents}
+                  {stats?.totalAgents || 0}
                 </Text>
                 <Text style={styles.statLabel}>Agents au total</Text>
                 <Text style={styles.statEmoji}>👥</Text>
@@ -138,7 +275,7 @@ export default function DashboardResponsable({ navigation }) {
 
               <View style={[styles.statCarte, { borderLeftColor: '#d97706' }]}>
                 <Text style={[styles.statNombre, { color: '#d97706' }]}>
-                  {responsableData.stats.seancesCeMois}
+                  {stats?.seancesCeMois || 0}
                 </Text>
                 <Text style={styles.statLabel}>RDV de ce mois</Text>
                 <Text style={styles.statEmoji}>💉</Text>
@@ -147,7 +284,7 @@ export default function DashboardResponsable({ navigation }) {
             </View>
 
             {/* Alerte comptes en attente — affiché seulement s'il y en a */}
-            {responsableData.stats.comptesAValider > 0 && (
+            {comptesEnAttente.length > 0 && (
               <TouchableOpacity
                 style={styles.alerteComptes}
                 onPress={() => setOnglet('agents')} // Bascule vers l'onglet Agents
@@ -156,7 +293,7 @@ export default function DashboardResponsable({ navigation }) {
                 <View style={styles.alerteTextes}>
                   <Text style={styles.alerteTitre}>Comptes en attente</Text>
                   <Text style={styles.alerteDescription}>
-                    {responsableData.stats.comptesAValider} agent(s) attendent votre validation
+                    {comptesEnAttente.length} agent(s) attendent votre validation
                   </Text>
                 </View>
                 {/* Flèche vers la droite */}
@@ -170,15 +307,15 @@ export default function DashboardResponsable({ navigation }) {
 
               <TouchableOpacity
                 style={[styles.actionCarte, { backgroundColor: '#1a6b3c' }]}
-                onPress={() => navigation.navigate('NouvelleSeance')}
+                onPress={() => navigation.navigate('NouvelleSeance', { token })}
               >
                 <Text style={styles.actionEmoji}>📅</Text>
-                <Text style={styles.actionTexte}>Planifier une RDV</Text>
+                <Text style={styles.actionTexte}>Planifier un RDV</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={[styles.actionCarte, { backgroundColor: '#2563eb' }]}
-                onPress={() => navigation.navigate('Rapport')}
+                onPress={() => navigation.navigate('Rapport', { token })}
               >
                 <Text style={styles.actionEmoji}>📊</Text>
                 <Text style={styles.actionTexte}>Générer un rapport</Text>
@@ -192,24 +329,23 @@ export default function DashboardResponsable({ navigation }) {
                 <Text style={styles.actionTexte}>Gérer les agents</Text>
               </TouchableOpacity>
 
-              
             </View>
           </View>
         )}
 
-        {/* 
+        {/*
             ONGLET 2 — GESTION DES AGENTS
-             */}
+        */}
         {onglet === 'agents' && (
           <View>
 
             {/* Comptes en attente de validation */}
-            {responsableData.comptesEnAttente.length > 0 && (
+            {comptesEnAttente.length > 0 && (
               <View>
                 <Text style={styles.sectionTitre}>⏳ En attente de validation</Text>
-                {responsableData.comptesEnAttente.map((agent) => (
+                {comptesEnAttente.map((agent) => (
                   <View key={agent.id} style={styles.carteValidation}>
-                    <Text style={styles.carteAvatar}>{agent.avatar}</Text>
+                    <Text style={styles.carteAvatar}>{agent.avatar || '👨‍⚕️'}</Text>
                     <View style={styles.carteInfos}>
                       <Text style={styles.carteNom}>{agent.nom}</Text>
                       <Text style={styles.carteEmail}>{agent.email}</Text>
@@ -237,37 +373,43 @@ export default function DashboardResponsable({ navigation }) {
 
             {/* Liste des agents actifs */}
             <Text style={styles.sectionTitre}>👥 Agents du centre</Text>
-            {responsableData.agents.map((agent) => (
-              <View key={agent.id} style={styles.agentLigne}>
-                <Text style={styles.agentAvatar}>{agent.avatar}</Text>
-                <View style={styles.agentInfos}>
-                  <Text style={styles.agentNom}>{agent.nom}</Text>
-                  <Text style={styles.agentRole}>{agent.role}</Text>
-                  {/* Nombre de vaccinations réalisées */}
-                  {agent.statut === 'actif' && (
-                    <Text style={styles.agentVaccins}>💉 {agent.vaccinesTotal} vaccinations</Text>
-                  )}
-                </View>
-                {/* Badge actif/inactif */}
-                <View style={[
-                  styles.statutBadge,
-                  { backgroundColor: agent.statut === 'actif' ? '#dcfce7' : '#fee2e2' }
-                ]}>
-                  <Text style={[
-                    styles.statutTexte,
-                    { color: agent.statut === 'actif' ? '#16a34a' : '#dc2626' }
+            {agents.length === 0 ? (
+              <Text style={{ color: '#6b7280', textAlign: 'center', padding: 20 }}>
+                Aucun agent enregistré.
+              </Text>
+            ) : (
+              agents.map((agent) => (
+                <View key={agent.id} style={styles.agentLigne}>
+                  <Text style={styles.agentAvatar}>{agent.avatar || '👨‍⚕️'}</Text>
+                  <View style={styles.agentInfos}>
+                    <Text style={styles.agentNom}>{agent.nom}</Text>
+                    <Text style={styles.agentRole}>{agent.role}</Text>
+                    {/* Nombre de vaccinations réalisées */}
+                    {agent.statut === 'actif' && (
+                      <Text style={styles.agentVaccins}>💉 {agent.vaccinesTotal} vaccinations</Text>
+                    )}
+                  </View>
+                  {/* Badge actif/inactif */}
+                  <View style={[
+                    styles.statutBadge,
+                    { backgroundColor: agent.statut === 'actif' ? '#dcfce7' : '#fee2e2' }
                   ]}>
-                    {agent.statut === 'actif' ? '● Actif' : '● Inactif'}
-                  </Text>
+                    <Text style={[
+                      styles.statutTexte,
+                      { color: agent.statut === 'actif' ? '#16a34a' : '#dc2626' }
+                    ]}>
+                      {agent.statut === 'actif' ? '● Actif' : '● Inactif'}
+                    </Text>
+                  </View>
                 </View>
-              </View>
-            ))}
+              ))
+            )}
           </View>
         )}
 
-        {/* 
+        {/*
             ONGLET 3 — SÉANCES DE VACCINATION
-             */}
+        */}
         {onglet === 'seances' && (
           <View>
             <View style={styles.seancesHeader}>
@@ -275,51 +417,61 @@ export default function DashboardResponsable({ navigation }) {
               {/* Bouton planifier nouvelle séance */}
               <TouchableOpacity
                 style={styles.btnNouvelleSeance}
-                onPress={() => navigation.navigate('NouvelleSeance')}
+                onPress={() => navigation.navigate('NouvelleSeance', { token })}
               >
                 <Text style={styles.btnNouvelleSeanceTexte}>+ Nouvelle</Text>
               </TouchableOpacity>
             </View>
 
-            {responsableData.seancesAVenir.map((seance) => (
-              <View key={seance.id} style={styles.carteSeance}>
-                {/* Bande verte à gauche = indicateur visuel */}
-                <View style={styles.seanceBande} />
-                <View style={styles.seanceInfos}>
-                  <Text style={styles.seanceTitre}>{seance.titre}</Text>
-                  <Text style={styles.seanceDetail}>📅 {seance.date} à {seance.heure}</Text>
-                  <Text style={styles.seanceDetail}>📍 {seance.lieu}</Text>
-                  <Text style={styles.seanceAgent}>👩‍⚕️ {seance.agentResponsable}</Text>
+            {seances.length === 0 ? (
+              <Text style={{ color: '#6b7280', textAlign: 'center', padding: 20 }}>
+                Aucune séance planifiée.
+              </Text>
+            ) : (
+              seances.map((seance) => (
+                <View key={seance.id} style={styles.carteSeance}>
+                  {/* Bande verte à gauche = indicateur visuel */}
+                  <View style={styles.seanceBande} />
+                  <View style={styles.seanceInfos}>
+                    <Text style={styles.seanceTitre}>{seance.titre}</Text>
+                    <Text style={styles.seanceDetail}>📅 {seance.date} à {seance.heure}</Text>
+                    <Text style={styles.seanceDetail}>📍 {seance.lieu}</Text>
+                    <Text style={styles.seanceAgent}>👩‍⚕️ {seance.agentResponsable}</Text>
+                  </View>
+                  {/* Bouton modifier */}
+                  <TouchableOpacity
+                    style={styles.btnModifier}
+                    onPress={() => navigation.navigate('ModifierSeance', { seance, token })}
+                  >
+                    <Text style={styles.btnModifierTexte}>✏️</Text>
+                  </TouchableOpacity>
                 </View>
-                {/* Bouton modifier */}
-                <TouchableOpacity style={styles.btnModifier}>
-                  <Text style={styles.btnModifierTexte}>✏️</Text>
-                </TouchableOpacity>
-              </View>
-            ))}
+              ))
+            )}
           </View>
         )}
 
         <View style={{ height: 80 }} />
       </ScrollView>
 
-      {/* ===== BARRE DE NAVIGATION BAS ===== */}
+      {/* BARRE DE NAVIGATION BAS */}
       <View style={styles.navBar}>
-        <TouchableOpacity style={styles.navItem}>
+        <TouchableOpacity style={styles.navItem} onPress={() => setOnglet('apercu')}>
           <Text style={styles.navEmoji}>🏠</Text>
-          <Text style={[styles.navTexte, styles.navActif]}>Accueil</Text>
+          <Text style={[styles.navTexte, onglet === 'apercu' && styles.navActif]}>Accueil</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.navItem} onPress={() => setOnglet('agents')}>
           <Text style={styles.navEmoji}>👥</Text>
-          <Text style={styles.navTexte}>Agents</Text>
+          <Text style={[styles.navTexte, onglet === 'agents' && styles.navActif]}>Agents</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.navItem} onPress={() => setOnglet('seances')}>
           <Text style={styles.navEmoji}>📅</Text>
-          <Text style={styles.navTexte}>RDV</Text>
+          <Text style={[styles.navTexte, onglet === 'seances' && styles.navActif]}>RDV</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem}>
-          <Text style={styles.navEmoji}>👤</Text>
-          <Text style={styles.navTexte}>Profil</Text>
+        {/* Bouton déconnexion dans la nav bar */}
+        <TouchableOpacity style={styles.navItem} onPress={seDeconnecter}>
+          <Text style={styles.navEmoji}>⏻</Text>
+          <Text style={styles.navTexte}>Déconnexion</Text>
         </TouchableOpacity>
       </View>
 
@@ -327,11 +479,19 @@ export default function DashboardResponsable({ navigation }) {
   );
 }
 
+// ─────────────────────────────────────────────
 // STYLES
-
+// ─────────────────────────────────────────────
 const styles = StyleSheet.create({
 
   container: { flex: 1, backgroundColor: '#f3f4f6' },
+
+  // Centrage pour les écrans de chargement/erreur
+  centreEcran: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
+  chargementTexte: { marginTop: 12, color: '#6b7280', fontSize: 14 },
+  erreurTexte: { fontSize: 16, color: '#dc2626', textAlign: 'center', marginBottom: 16 },
+  boutonReessayer: { backgroundColor: '#1a3c2e', borderRadius: 12, paddingHorizontal: 24, paddingVertical: 12 },
+  boutonReessayerTexte: { color: 'white', fontWeight: 'bold' },
 
   header: {
     backgroundColor: '#1a3c2e', // Vert plus foncé pour différencier du dashboard agent
@@ -351,12 +511,23 @@ const styles = StyleSheet.create({
   nomResponsable: { color: 'white', fontSize: 20, fontWeight: 'bold', marginVertical: 2 },
   centre: { color: 'rgba(255,255,255,0.75)', fontSize: 13 },
 
+  // Conteneur des boutons en haut à droite
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+
   avatarContainer: {
     width: 50, height: 50, borderRadius: 25,
     backgroundColor: 'rgba(255,255,255,0.15)',
     alignItems: 'center', justifyContent: 'center',
   },
   avatarEmoji: { fontSize: 26 },
+
+  // Bouton déconnexion
+  deconnexionBtn: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 20,
+    padding: 8,
+  },
+  deconnexionTexte: { fontSize: 18 },
 
   // Onglets dans l'en-tête
   onglets: {
@@ -430,7 +601,7 @@ const styles = StyleSheet.create({
   alerteDescription: { fontSize: 13, color: '#92400e', marginTop: 2 },
   alerteFleche: { fontSize: 24, color: '#d97706', fontWeight: 'bold' },
 
-  // Grille d'actions rapides 2x2
+  // Grille d'actions rapides
   actionsGrille: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -510,7 +681,7 @@ const styles = StyleSheet.create({
   },
 
   btnNouvelleSeance: {
-    backgroundColor: '#1a6b3c',
+    backgroundColor: '#1a3c2e',
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -528,7 +699,8 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   seanceBande: {
-    width: 4, height: '100%',
+    width: 4,
+    alignSelf: 'stretch',
     backgroundColor: '#1a6b3c',
     borderRadius: 4,
     marginRight: 12,
@@ -556,5 +728,4 @@ const styles = StyleSheet.create({
   navEmoji: { fontSize: 22 },
   navTexte: { fontSize: 11, color: '#9ca3af', marginTop: 2 },
   navActif: { color: '#1a6b3c', fontWeight: 'bold' },
-
 });
