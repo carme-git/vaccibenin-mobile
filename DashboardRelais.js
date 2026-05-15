@@ -19,9 +19,6 @@ const joursRestants = (dateStr) => {
   return Math.ceil((new Date(dateStr) - new Date()) / (1000 * 60 * 60 * 24));
 };
 
-const moisActuel = () =>
-  new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
-
 const extraireTableau = (response) => {
   if (!response) return [];
   const data = response.data ?? response;
@@ -33,7 +30,7 @@ const extraireTableau = (response) => {
 const ChipDelai = ({ dateStr }) => {
   const j = joursRestants(dateStr);
   if (j === null) return null;
-  if (j < 0)  return <View style={[S.chip, S.chipR]}><Text style={S.chipRT}>{Math.abs(j)} jours de retard</Text></View>;
+  if (j < 0)   return <View style={[S.chip, S.chipR]}><Text style={S.chipRT}>{Math.abs(j)} jours de retard</Text></View>;
   if (j === 0) return <View style={[S.chip, S.chipA]}><Text style={S.chipAT}>Aujourd'hui</Text></View>;
   return <View style={[S.chip, S.chipV]}><Text style={S.chipVT}>Dans {j} jours</Text></View>;
 };
@@ -51,8 +48,8 @@ const CarteEnfant = ({ enfant, enRetard }) => (
     <Text style={S.ageCode}>{enfant.age_mois ? `${enfant.age_mois} mois` : '—'} · Code : {enfant.code || '—'}</Text>
     {enfant.prochain_vaccin?.date_prevue && (
       <View style={S.dateLigne}>
-        <Text style={S.dateIcone}>📅</Text>
-        <Text style={S.dateTexte}>{formatDateCourt(enfant.prochain_vaccin.date_prevue)}</Text>
+        <Text style={S.dateI}>📅</Text>
+        <Text style={S.dateT}>{formatDateCourt(enfant.prochain_vaccin.date_prevue)}</Text>
         <ChipDelai dateStr={enfant.prochain_vaccin.date_prevue} />
       </View>
     )}
@@ -71,68 +68,40 @@ const CarteEnfant = ({ enfant, enRetard }) => (
         </View>
       )}
     </View>
-    <View style={S.parentsGrid}>
-      <View style={S.pCol}>
-        <Text style={S.pLabel}>PÈRE</Text>
-        <Text style={S.pVal}>{enfant.pere?.nom || 'Non renseigné'}</Text>
-      </View>
-      {enfant.pere?.telephone && (
-        <View style={S.pCol}>
-          <Text style={S.pLabel}>TÉL. PÈRE</Text>
-          <Text style={S.pVal}>{enfant.pere.telephone}</Text>
-        </View>
-      )}
-    </View>
     {enfant.mere_tuteur?.adresse && (
       <View style={{ marginTop: 4 }}>
-        <Text style={S.pLabel}>ADRESSE / LOCALISATION</Text>
+        <Text style={S.pLabel}>ADRESSE</Text>
         <Text style={S.pVal}>{enfant.mere_tuteur.adresse}</Text>
       </View>
     )}
   </View>
 );
 
-const BarreCouverture = ({ vaccin, age, pct }) => {
-  const c = pct >= 90 ? '#16a34a' : pct >= 70 ? '#d97706' : '#dc2626';
-  return (
-    <View style={S.barreLigne}>
-      <View style={S.barreG}><Text style={S.barreNom}>{vaccin}</Text><Text style={S.barreAge}>{age}</Text></View>
-      <View style={S.barreM}>
-        <View style={S.barreBg}><View style={[S.barreF, { width: `${pct}%`, backgroundColor: c }]} /></View>
-      </View>
-      <Text style={[S.barrePct, { color: c }]}>{pct}%</Text>
-    </View>
-  );
-};
-
-export default function DashboardAgent({ navigation }) {
-  const [loading, setLoading]         = useState(true);
-  const [refreshing, setRefreshing]   = useState(false);
-  const [agent, setAgent]             = useState(null);
-  const [stats, setStats]             = useState({ vaccinations_aujourd_hui: 0, rdv_aujourd_hui: 0, enfants_en_retard: 0, vaccinations_ce_mois: 0 });
-  const [rdvsAVenir, setRdvsAVenir]   = useState([]);
+export default function DashboardRelais({ navigation }) {
+  const [loading, setLoading]             = useState(true);
+  const [refreshing, setRefreshing]       = useState(false);
+  const [relais, setRelais]               = useState(null);
+  const [stats, setStats]                 = useState({ centre_nom: '—', centre_ville: '—', enfants_suivis: 0 });
+  const [rdvsAVenir, setRdvsAVenir]       = useState([]);
   const [enfantsRetard, setEnfantsRetard] = useState([]);
-  const [couverture, setCouverture]   = useState([]);
-  const [onglet, setOnglet]           = useState('rdv');
+  const [onglet, setOnglet]               = useState('rdv');
 
   const charger = async () => {
     try {
       const token = await AsyncStorage.getItem('token');
       const h = { Authorization: `Bearer ${token}` };
-      const [p, st, rdv, ret, cov] = await Promise.all([
-        axios.get(`${API_URL}/profil`,                     { headers: h }),
-        axios.get(`${API_URL}/agent/stats`,                { headers: h }),
-        axios.get(`${API_URL}/agent/enfants/rdv-a-venir`,  { headers: h }),
-        axios.get(`${API_URL}/agent/enfants/en-retard`,    { headers: h }),
-        axios.get(`${API_URL}/agent/couverture-vaccinale`, { headers: h }),
+      const [p, st, rdv, ret] = await Promise.all([
+        axios.get(`${API_URL}/profil`,                        { headers: h }),
+        axios.get(`${API_URL}/relais/stats`,                  { headers: h }),
+        axios.get(`${API_URL}/relais/enfants/rdv-a-venir`,   { headers: h }),
+        axios.get(`${API_URL}/relais/enfants/en-retard`,      { headers: h }),
       ]);
-      setAgent(p.data?.user || p.data);
-      setStats(st.data || { vaccinations_aujourd_hui: 0, rdv_aujourd_hui: 0, enfants_en_retard: 0, vaccinations_ce_mois: 0 });
+      setRelais(p.data?.user || p.data);
+      setStats(st.data || { centre_nom: '—', centre_ville: '—', enfants_suivis: 0 });
       setRdvsAVenir(extraireTableau(rdv));
       setEnfantsRetard(extraireTableau(ret));
-      setCouverture(extraireTableau(cov));
     } catch (e) {
-      console.error('Erreur DashboardAgent:', e?.response?.data || e.message);
+      console.error('Erreur DashboardRelais:', e?.response?.data || e.message);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -162,51 +131,32 @@ export default function DashboardAgent({ navigation }) {
           <Text style={S.topDate}>{new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</Text>
         </View>
         <TouchableOpacity style={S.avatar} onPress={() => navigation.navigate('Connexion')}>
-          <Text style={S.avatarT}>{agent?.prenom?.charAt(0)}{agent?.nom?.charAt(0)}</Text>
+          <Text style={S.avatarT}>{relais?.prenom?.charAt(0)}{relais?.nom?.charAt(0)}</Text>
         </TouchableOpacity>
       </View>
       <View style={S.identite}>
-        <Text style={S.identiteNom}>{agent?.prenom} {agent?.nom}</Text>
-        <Text style={S.identiteRole}>Agent de Santé · {agent?.centre_sante?.nom || '—'}</Text>
+        <Text style={S.identiteNom}>{relais?.prenom} {relais?.nom}</Text>
+        <Text style={S.identiteRole}>Relais Communautaire · {relais?.centre_sante?.nom || '—'}</Text>
       </View>
       <ScrollView style={S.scroll} showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#065f46']} />}>
         <View style={S.statsRow}>
           <View style={S.statCard}>
-            <Text style={S.statL}>VACCINATIONS{'\n'}AUJOURD'HUI</Text>
-            <Text style={S.statV}>{stats.vaccinations_aujourd_hui ?? 0}</Text>
-            <Text style={S.statS}>Effectuées par vous</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('MarquerVaccination')}>
-              <Text style={S.statLien}>Saisir →</Text>
-            </TouchableOpacity>
-            <View style={[S.statIB, { backgroundColor: '#dbeafe' }]}><Text style={S.statI}>💉</Text></View>
+            <Text style={S.statL}>MON CENTRE</Text>
+            <Text style={S.statCentreNom}>{stats.centre_nom || relais?.centre_sante?.nom || '—'}</Text>
+            <Text style={S.statS}>{stats.centre_ville || relais?.centre_sante?.ville || '—'}</Text>
+            <View style={[S.statIB, { backgroundColor: '#d1fae5' }]}><Text style={S.statI}>🏥</Text></View>
           </View>
           <View style={S.statCard}>
-            <Text style={S.statL}>RDV{'\n'}AUJOURD'HUI</Text>
-            <Text style={S.statV}>{stats.rdv_aujourd_hui ?? 0}</Text>
+            <Text style={S.statL}>ENFANTS{'\n'}SUIVIS</Text>
+            <Text style={S.statV}>{stats.enfants_suivis ?? 0}</Text>
             <Text style={S.statS}>Dans votre centre</Text>
-            <View style={[S.statIB, { backgroundColor: '#fef3c7' }]}><Text style={S.statI}>📅</Text></View>
-          </View>
-        </View>
-        <View style={S.statsRow}>
-          <View style={S.statCard}>
-            <Text style={S.statL}>ENFANTS{'\n'}EN RETARD</Text>
-            <Text style={[S.statV, { color: '#dc2626' }]}>{stats.enfants_en_retard ?? 0}</Text>
-            <Text style={S.statS}>Vaccination non effectuée</Text>
-            {(stats.enfants_en_retard ?? 0) > 0 && (
-              <View style={S.critBadge}><Text style={S.critT}>● Critique</Text></View>
-            )}
-            <View style={[S.statIB, { backgroundColor: '#fee2e2' }]}><Text style={S.statI}>⚠️</Text></View>
-          </View>
-          <View style={S.statCard}>
-            <Text style={S.statL}>VACCINATIONS{'\n'}CE MOIS</Text>
-            <Text style={S.statV}>{stats.vaccinations_ce_mois ?? 0}</Text>
-            <Text style={S.statS}>{moisActuel()}</Text>
-            <View style={[S.statIB, { backgroundColor: '#d1fae5' }]}><Text style={S.statI}>📊</Text></View>
+            <View style={[S.statIB, { backgroundColor: '#dbeafe' }]}><Text style={S.statI}>👶</Text></View>
           </View>
         </View>
         <View style={S.section}>
-          <View style={S.secTRow}><Text style={S.secI}>👤</Text><Text style={S.secT}>SUIVI DES ENFANTS</Text></View>
+          <View style={S.secTRow}><Text style={S.secTitre}>Liste de terrain</Text></View>
+          <Text style={S.secSub}>Familles à contacter</Text>
           <View style={S.ongletsRow}>
             <TouchableOpacity style={[S.ongletBtn, onglet === 'rdv' && S.ongActif]} onPress={() => setOnglet('rdv')}>
               <Text style={[S.ongT, onglet === 'rdv' && S.ongTA]}>📅 RDV à venir  {rdvsAVenir.length}</Text>
@@ -219,31 +169,6 @@ export default function DashboardAgent({ navigation }) {
             ? <View style={S.vide}><Text style={S.videT}>{onglet === 'rdv' ? 'Aucun rendez-vous à venir' : 'Aucun enfant en retard 🎉'}</Text></View>
             : liste.map((e, i) => <CarteEnfant key={i} enfant={e} enRetard={onglet === 'retard'} />)
           }
-        </View>
-        {couverture.length > 0 && (
-          <View style={S.section}>
-            <View style={S.secTRow}><Text style={S.secI}>🛡️</Text><Text style={S.secT}>COUVERTURE VACCINALE</Text></View>
-            <View style={S.couvCard}>
-              <Text style={S.couvTitre}>Vaccins clés — Calendrier PEV</Text>
-              <Text style={S.couvSub}>{agent?.centre_sante?.nom || 'Votre centre'}</Text>
-              <View style={{ marginTop: 12 }}>
-                {couverture.map((item, i) => <BarreCouverture key={i} vaccin={item.vaccin} age={item.age_cible} pct={item.taux || 0} />)}
-              </View>
-              <View style={S.legende}>
-                {[['#16a34a','≥ 90% — Bonne couverture'],['#d97706','70–89% — À améliorer'],['#dc2626','< 70% — Critique']].map(([c,t],i) => (
-                  <View key={i} style={S.legItem}><View style={[S.legDot,{backgroundColor:c}]}/><Text style={S.legT}>{t}</Text></View>
-                ))}
-              </View>
-            </View>
-          </View>
-        )}
-        <View style={S.section}>
-          <TouchableOpacity style={[S.actionBtn,{backgroundColor:'#065f46',marginBottom:10}]} onPress={() => navigation.navigate('EnregistrerEnfant')}>
-            <Text style={S.actionT}>+ Enregistrer un enfant</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[S.actionBtn,{backgroundColor:'#0284c7'}]} onPress={() => navigation.navigate('MarquerVaccination')}>
-            <Text style={S.actionT}>💉 Saisir une vaccination</Text>
-          </TouchableOpacity>
         </View>
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -269,30 +194,28 @@ const S = StyleSheet.create({
   statCard:{flex:1,backgroundColor:'#fff',borderRadius:14,padding:14,position:'relative',overflow:'hidden',shadowColor:'#000',shadowOpacity:0.05,shadowRadius:6,elevation:2},
   statL:{fontSize:10,color:'#6b7280',fontWeight:'600',lineHeight:14,letterSpacing:0.3},
   statV:{fontSize:32,fontWeight:'800',color:'#111827',marginTop:4},
+  statCentreNom:{fontSize:15,fontWeight:'700',color:'#111827',marginTop:4},
   statS:{fontSize:11,color:'#9ca3af',marginTop:2},
-  statLien:{fontSize:11,color:VERT,fontWeight:'600',marginTop:6},
   statIB:{position:'absolute',top:12,right:12,width:36,height:36,borderRadius:10,justifyContent:'center',alignItems:'center'},
   statI:{fontSize:18},
-  critBadge:{marginTop:6,backgroundColor:'#dc2626',borderRadius:10,paddingHorizontal:8,paddingVertical:3,alignSelf:'flex-start'},
-  critT:{color:'#fff',fontSize:10,fontWeight:'700'},
-  section:{paddingHorizontal:12,marginTop:16},
-  secTRow:{flexDirection:'row',alignItems:'center',marginBottom:12},
-  secI:{fontSize:14,marginRight:6},
-  secT:{fontSize:12,fontWeight:'700',color:'#6b7280',letterSpacing:0.5},
+  section:{paddingHorizontal:12,marginTop:20},
+  secTRow:{flexDirection:'row',alignItems:'center'},
+  secTitre:{fontSize:18,fontWeight:'700',color:'#111827'},
+  secSub:{fontSize:13,color:'#6b7280',marginBottom:14,marginTop:2},
   ongletsRow:{flexDirection:'row',gap:10,marginBottom:12},
   ongletBtn:{paddingHorizontal:16,paddingVertical:10,borderRadius:20,borderWidth:1,borderColor:'#d1d5db',backgroundColor:'#fff'},
   ongActif:{backgroundColor:VERT,borderColor:VERT},
   ongRetActif:{backgroundColor:'#dc2626',borderColor:'#dc2626'},
   ongT:{fontSize:13,color:'#374151',fontWeight:'500'},
   ongTA:{color:'#fff',fontWeight:'700'},
-  carteEnfant:{backgroundColor:'#fff',borderRadius:14,padding:16,marginBottom:10,borderLeftWidth:3,borderLeftColor:VERT,shadowColor:'#000',shadowOpacity:0.04,shadowRadius:4,elevation:1},
+  carteEnfant:{backgroundColor:'#fff',borderRadius:14,padding:16,marginBottom:10,borderLeftWidth:3,borderLeftColor:VERT,shadowColor:'#000',shadowOpacity:0.04,elevation:1},
   carteEnfantR:{borderLeftColor:'#dc2626'},
   carteHead:{flexDirection:'row',alignItems:'center',flexWrap:'wrap',gap:8,marginBottom:4},
   nomEnfant:{fontSize:16,fontWeight:'700',color:'#111827'},
   ageCode:{fontSize:12,color:'#6b7280',marginBottom:8},
   dateLigne:{flexDirection:'row',alignItems:'center',marginBottom:10,gap:6},
-  dateIcone:{fontSize:13},
-  dateTexte:{fontSize:13,color:'#374151'},
+  dateI:{fontSize:13},
+  dateT:{fontSize:13,color:'#374151'},
   sep:{height:1,backgroundColor:'#f3f4f6',marginBottom:10},
   parentsGrid:{flexDirection:'row',marginBottom:6},
   pCol:{flex:1},
@@ -307,21 +230,4 @@ const S = StyleSheet.create({
   chipVaccinT:{fontSize:11,color:VERT,fontWeight:'600'},
   vide:{alignItems:'center',paddingVertical:30},
   videT:{color:'#9ca3af',fontSize:14},
-  couvCard:{backgroundColor:'#fff',borderRadius:14,padding:16,shadowColor:'#000',shadowOpacity:0.04,elevation:1},
-  couvTitre:{fontSize:15,fontWeight:'700',color:'#111827'},
-  couvSub:{fontSize:12,color:'#6b7280',marginTop:2},
-  barreLigne:{flexDirection:'row',alignItems:'center',marginBottom:12},
-  barreG:{width:80},
-  barreNom:{fontSize:13,fontWeight:'600',color:'#111827'},
-  barreAge:{fontSize:10,color:'#9ca3af'},
-  barreM:{flex:1,marginHorizontal:10},
-  barreBg:{height:8,backgroundColor:'#f3f4f6',borderRadius:4,overflow:'hidden'},
-  barreF:{height:'100%',borderRadius:4},
-  barrePct:{fontSize:13,fontWeight:'700',width:40,textAlign:'right'},
-  legende:{marginTop:12,paddingTop:12,borderTopWidth:1,borderTopColor:'#f3f4f6',gap:4},
-  legItem:{flexDirection:'row',alignItems:'center',gap:6},
-  legDot:{width:8,height:8,borderRadius:4},
-  legT:{fontSize:11,color:'#6b7280'},
-  actionBtn:{borderRadius:12,paddingVertical:14,alignItems:'center',shadowColor:'#000',shadowOpacity:0.1,elevation:2},
-  actionT:{color:'#fff',fontSize:14,fontWeight:'600'},
 });
