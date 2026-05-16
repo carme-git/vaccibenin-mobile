@@ -30,48 +30,45 @@ const extraireTableau = (response) => {
 const ChipDelai = ({ dateStr }) => {
   const j = joursRestants(dateStr);
   if (j === null) return null;
-  if (j < 0)   return <View style={[S.chip, S.chipR]}><Text style={S.chipRT}>{Math.abs(j)} jours de retard</Text></View>;
-  if (j === 0) return <View style={[S.chip, S.chipA]}><Text style={S.chipAT}>Aujourd'hui</Text></View>;
-  return <View style={[S.chip, S.chipV]}><Text style={S.chipVT}>Dans {j} jours</Text></View>;
+  if (j < 0)   return <View style={[S.chip, { backgroundColor: '#fee2e2' }]}><Text style={[S.chipT, { color: '#dc2626' }]}>{Math.abs(j)} jours de retard</Text></View>;
+  if (j === 0) return <View style={[S.chip, { backgroundColor: '#fef3c7' }]}><Text style={[S.chipT, { color: '#92400e' }]}>Aujourd'hui</Text></View>;
+  return <View style={[S.chip, { backgroundColor: '#d1fae5' }]}><Text style={[S.chipT, { color: '#065f46' }]}>Dans {j} jours</Text></View>;
 };
 
-const ChipVaccin = ({ nom }) => (
-  <View style={S.chipVaccin}><Text style={S.chipVaccinT}>{nom}</Text></View>
-);
-
 const CarteEnfant = ({ enfant, enRetard }) => (
-  <View style={[S.carteEnfant, enRetard && S.carteEnfantR]}>
+  <View style={[S.carteEnfant, enRetard && { borderLeftColor: '#dc2626' }]}>
     <View style={S.carteHead}>
-      <Text style={S.nomEnfant}>{enfant.prenom} {enfant.nom}</Text>
-      {enfant.prochain_vaccin?.vaccin && <ChipVaccin nom={enfant.prochain_vaccin.vaccin} />}
+      <Text style={S.eNom}>{enfant.prenom} {enfant.nom}</Text>
+      {enfant.prochain_vaccin?.vaccin && (
+        <View style={S.chipVaccin}><Text style={S.chipVaccinT}>{enfant.prochain_vaccin.vaccin}</Text></View>
+      )}
     </View>
-    <Text style={S.ageCode}>{enfant.age_mois ? `${enfant.age_mois} mois` : '—'} · Code : {enfant.code || '—'}</Text>
+    <Text style={S.eCode}>{enfant.age_mois ? `${enfant.age_mois} mois` : '—'} · Code : {enfant.code || '—'}</Text>
     {enfant.prochain_vaccin?.date_prevue && (
-      <View style={S.dateLigne}>
-        <Text style={S.dateI}>📅</Text>
-        <Text style={S.dateT}>{formatDateCourt(enfant.prochain_vaccin.date_prevue)}</Text>
+      <View style={S.eDate}>
+        <Text style={S.eDateT}>{formatDateCourt(enfant.prochain_vaccin.date_prevue)}</Text>
         <ChipDelai dateStr={enfant.prochain_vaccin.date_prevue} />
       </View>
     )}
-    <View style={S.sep} />
-    <View style={S.parentsGrid}>
-      <View style={S.pCol}>
-        <Text style={S.pLabel}>MÈRE</Text>
-        <Text style={S.pVal}>{enfant.mere_tuteur?.nom || 'Non renseigné'}</Text>
+    <View style={S.eSep} />
+    <View style={S.eGrid}>
+      <View style={S.eCol}>
+        <Text style={S.eLabel}>MÈRE</Text>
+        <Text style={S.eVal}>{enfant.mere_tuteur?.nom || 'Non renseigné'}</Text>
       </View>
       {enfant.mere_tuteur?.telephone && (
-        <View style={S.pCol}>
-          <Text style={S.pLabel}>TÉL. MÈRE</Text>
+        <View style={S.eCol}>
+          <Text style={S.eLabel}>TÉL. MÈRE</Text>
           <TouchableOpacity onPress={() => Linking.openURL(`tel:${enfant.mere_tuteur.telephone}`)}>
-            <Text style={S.pTel}>{enfant.mere_tuteur.telephone}</Text>
+            <Text style={S.eTel}>{enfant.mere_tuteur.telephone}</Text>
           </TouchableOpacity>
         </View>
       )}
     </View>
     {enfant.mere_tuteur?.adresse && (
       <View style={{ marginTop: 4 }}>
-        <Text style={S.pLabel}>ADRESSE</Text>
-        <Text style={S.pVal}>{enfant.mere_tuteur.adresse}</Text>
+        <Text style={S.eLabel}>ADRESSE</Text>
+        <Text style={S.eVal}>{enfant.mere_tuteur.adresse}</Text>
       </View>
     )}
   </View>
@@ -91,17 +88,17 @@ export default function DashboardRelais({ navigation }) {
       const token = await AsyncStorage.getItem('token');
       const h = { Authorization: `Bearer ${token}` };
       const [p, st, rdv, ret] = await Promise.all([
-        axios.get(`${API_URL}/profil`,                        { headers: h }),
-        axios.get(`${API_URL}/relais/stats`,                  { headers: h }),
-        axios.get(`${API_URL}/relais/enfants/rdv-a-venir`,   { headers: h }),
-        axios.get(`${API_URL}/relais/enfants/en-retard`,      { headers: h }),
+        axios.get(`${API_URL}/profil`,                     { headers: h }),
+        axios.get(`${API_URL}/relais/stats`,               { headers: h }),
+        axios.get(`${API_URL}/relais/enfants/rdv-a-venir`, { headers: h }),
+        axios.get(`${API_URL}/relais/enfants/en-retard`,   { headers: h }),
       ]);
       setRelais(p.data?.user || p.data);
       setStats(st.data || { centre_nom: '—', centre_ville: '—', enfants_suivis: 0 });
       setRdvsAVenir(extraireTableau(rdv));
       setEnfantsRetard(extraireTableau(ret));
     } catch (e) {
-      console.error('Erreur DashboardRelais:', e?.response?.data || e.message);
+      console.error('DashboardRelais:', e?.response?.data || e.message);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -113,56 +110,66 @@ export default function DashboardRelais({ navigation }) {
 
   if (loading) return (
     <View style={S.loader}>
-      <ActivityIndicator size="large" color="#065f46" />
+      <ActivityIndicator size="large" color="#00695c" />
       <Text style={S.loaderT}>Chargement…</Text>
     </View>
   );
 
-  const liste = onglet === 'rdv'
-    ? (Array.isArray(rdvsAVenir) ? rdvsAVenir : [])
-    : (Array.isArray(enfantsRetard) ? enfantsRetard : []);
+  const liste = onglet === 'rdv' ? rdvsAVenir : enfantsRetard;
 
   return (
     <SafeAreaView style={S.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+
+      {/* ── Topbar ── */}
       <View style={S.topbar}>
         <View>
           <Text style={S.topTitre}>Tableau de bord</Text>
-          <Text style={S.topDate}>{new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</Text>
+          <Text style={S.topDate}>
+            {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+          </Text>
         </View>
-        <TouchableOpacity style={S.avatar} onPress={() => navigation.navigate('Connexion')}>
+        <TouchableOpacity style={[S.avatar, { backgroundColor: '#00695c' }]} onPress={() => navigation.navigate('Connexion')}>
           <Text style={S.avatarT}>{relais?.prenom?.charAt(0)}{relais?.nom?.charAt(0)}</Text>
         </TouchableOpacity>
       </View>
+
+      {/* ── Identité ── */}
       <View style={S.identite}>
-        <Text style={S.identiteNom}>{relais?.prenom} {relais?.nom}</Text>
-        <Text style={S.identiteRole}>Relais Communautaire · {relais?.centre_sante?.nom || '—'}</Text>
+        <Text style={S.idNom}>{relais?.prenom} {relais?.nom}</Text>
+        <Text style={S.idRole}>Relais Communautaire · {relais?.centre_sante?.nom || '—'}</Text>
       </View>
+
       <ScrollView style={S.scroll} showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#065f46']} />}>
-        <View style={S.statsRow}>
-          <View style={S.statCard}>
-            <Text style={S.statL}>MON CENTRE</Text>
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#00695c']} />}>
+
+        {/* ── Stats ── */}
+        <View style={S.statsGrid}>
+          {/* Mon centre */}
+          <View style={S.stat}>
+            <Text style={S.statLabel}>MON CENTRE</Text>
             <Text style={S.statCentreNom}>{stats.centre_nom || relais?.centre_sante?.nom || '—'}</Text>
-            <Text style={S.statS}>{stats.centre_ville || relais?.centre_sante?.ville || '—'}</Text>
-            <View style={[S.statIB, { backgroundColor: '#d1fae5' }]}><Text style={S.statI}>🏥</Text></View>
+            <Text style={S.statSub}>{stats.centre_ville || relais?.centre_sante?.ville || '—'}</Text>
+            <View style={[S.statIco, { backgroundColor: '#d1fae5' }]}><Text style={S.statIcoE}>🏥</Text></View>
           </View>
-          <View style={S.statCard}>
-            <Text style={S.statL}>ENFANTS{'\n'}SUIVIS</Text>
-            <Text style={S.statV}>{stats.enfants_suivis ?? 0}</Text>
-            <Text style={S.statS}>Dans votre centre</Text>
-            <View style={[S.statIB, { backgroundColor: '#dbeafe' }]}><Text style={S.statI}>👶</Text></View>
+          {/* Enfants suivis */}
+          <View style={S.stat}>
+            <Text style={S.statLabel}>ENFANTS{'\n'}SUIVIS</Text>
+            <Text style={[S.statVal, { color: '#00695c' }]}>{stats.enfants_suivis ?? 0}</Text>
+            <Text style={S.statSub}>Dans votre centre</Text>
+            <View style={[S.statIco, { backgroundColor: '#dbeafe' }]}><Text style={S.statIcoE}>👤</Text></View>
           </View>
         </View>
-        <View style={S.section}>
-          <View style={S.secTRow}><Text style={S.secTitre}>Liste de terrain</Text></View>
-          <Text style={S.secSub}>Familles à contacter</Text>
-          <View style={S.ongletsRow}>
-            <TouchableOpacity style={[S.ongletBtn, onglet === 'rdv' && S.ongActif]} onPress={() => setOnglet('rdv')}>
-              <Text style={[S.ongT, onglet === 'rdv' && S.ongTA]}>📅 RDV à venir  {rdvsAVenir.length}</Text>
+
+        {/* ── Liste de terrain ── */}
+        <View style={S.card}>
+          <Text style={S.secHeadT}>LISTE DE TERRAIN — FAMILLES À CONTACTER</Text>
+          <View style={S.tabsRow}>
+            <TouchableOpacity style={[S.tab, onglet === 'rdv' && S.tabActif]} onPress={() => setOnglet('rdv')}>
+              <Text style={[S.tabT, onglet === 'rdv' && S.tabActifT]}>RDV à venir  {rdvsAVenir.length}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[S.ongletBtn, onglet === 'retard' && S.ongRetActif]} onPress={() => setOnglet('retard')}>
-              <Text style={[S.ongT, onglet === 'retard' && S.ongTA]}>⚠️ En retard  {enfantsRetard.length}</Text>
+            <TouchableOpacity style={[S.tab, onglet === 'retard' && S.tabRetard]} onPress={() => setOnglet('retard')}>
+              <Text style={[S.tabT, onglet === 'retard' && S.tabActifT]}>En retard  {enfantsRetard.length}</Text>
             </TouchableOpacity>
           </View>
           {liste.length === 0
@@ -170,64 +177,86 @@ export default function DashboardRelais({ navigation }) {
             : liste.map((e, i) => <CarteEnfant key={i} enfant={e} enRetard={onglet === 'retard'} />)
           }
         </View>
-        <View style={{ height: 40 }} />
+
+        <View style={{ height: 20 }} />
       </ScrollView>
+
+      {/* ── Navbar ── */}
+      <View style={S.navbar}>
+        <TouchableOpacity style={S.navItem}>
+          <Text style={[S.navLabel, { color: '#00695c', fontWeight: '600' }]}>Accueil</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={S.navItem} onPress={() => navigation.navigate('Observations')}>
+          <Text style={S.navLabel}>Observations</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={S.navItem} onPress={() => navigation.navigate('RendezVous')}>
+          <Text style={S.navLabel}>Rendez-vous</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={S.navItem} onPress={() => navigation.navigate('Connexion')}>
+          <Text style={S.navLabel}>Déco.</Text>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 }
 
-const VERT = '#065f46';
 const S = StyleSheet.create({
-  container:{flex:1,backgroundColor:'#f9fafb'},
-  loader:{flex:1,justifyContent:'center',alignItems:'center'},
-  loaderT:{marginTop:12,color:VERT,fontSize:14},
-  scroll:{flex:1},
-  topbar:{backgroundColor:'#fff',paddingHorizontal:20,paddingVertical:14,flexDirection:'row',justifyContent:'space-between',alignItems:'center',borderBottomWidth:1,borderBottomColor:'#e5e7eb'},
-  topTitre:{fontSize:20,fontWeight:'700',color:'#111827'},
-  topDate:{fontSize:12,color:'#6b7280',marginTop:2},
-  avatar:{width:38,height:38,borderRadius:19,backgroundColor:VERT,justifyContent:'center',alignItems:'center'},
-  avatarT:{color:'#fff',fontSize:13,fontWeight:'700'},
-  identite:{backgroundColor:'#fff',paddingHorizontal:20,paddingVertical:10,borderBottomWidth:1,borderBottomColor:'#f3f4f6'},
-  identiteNom:{fontSize:15,fontWeight:'600',color:'#111827'},
-  identiteRole:{fontSize:12,color:'#6b7280',marginTop:2},
-  statsRow:{flexDirection:'row',paddingHorizontal:12,paddingTop:12,gap:10},
-  statCard:{flex:1,backgroundColor:'#fff',borderRadius:14,padding:14,position:'relative',overflow:'hidden',shadowColor:'#000',shadowOpacity:0.05,shadowRadius:6,elevation:2},
-  statL:{fontSize:10,color:'#6b7280',fontWeight:'600',lineHeight:14,letterSpacing:0.3},
-  statV:{fontSize:32,fontWeight:'800',color:'#111827',marginTop:4},
-  statCentreNom:{fontSize:15,fontWeight:'700',color:'#111827',marginTop:4},
-  statS:{fontSize:11,color:'#9ca3af',marginTop:2},
-  statIB:{position:'absolute',top:12,right:12,width:36,height:36,borderRadius:10,justifyContent:'center',alignItems:'center'},
-  statI:{fontSize:18},
-  section:{paddingHorizontal:12,marginTop:20},
-  secTRow:{flexDirection:'row',alignItems:'center'},
-  secTitre:{fontSize:18,fontWeight:'700',color:'#111827'},
-  secSub:{fontSize:13,color:'#6b7280',marginBottom:14,marginTop:2},
-  ongletsRow:{flexDirection:'row',gap:10,marginBottom:12},
-  ongletBtn:{paddingHorizontal:16,paddingVertical:10,borderRadius:20,borderWidth:1,borderColor:'#d1d5db',backgroundColor:'#fff'},
-  ongActif:{backgroundColor:VERT,borderColor:VERT},
-  ongRetActif:{backgroundColor:'#dc2626',borderColor:'#dc2626'},
-  ongT:{fontSize:13,color:'#374151',fontWeight:'500'},
-  ongTA:{color:'#fff',fontWeight:'700'},
-  carteEnfant:{backgroundColor:'#fff',borderRadius:14,padding:16,marginBottom:10,borderLeftWidth:3,borderLeftColor:VERT,shadowColor:'#000',shadowOpacity:0.04,elevation:1},
-  carteEnfantR:{borderLeftColor:'#dc2626'},
-  carteHead:{flexDirection:'row',alignItems:'center',flexWrap:'wrap',gap:8,marginBottom:4},
-  nomEnfant:{fontSize:16,fontWeight:'700',color:'#111827'},
-  ageCode:{fontSize:12,color:'#6b7280',marginBottom:8},
-  dateLigne:{flexDirection:'row',alignItems:'center',marginBottom:10,gap:6},
-  dateI:{fontSize:13},
-  dateT:{fontSize:13,color:'#374151'},
-  sep:{height:1,backgroundColor:'#f3f4f6',marginBottom:10},
-  parentsGrid:{flexDirection:'row',marginBottom:6},
-  pCol:{flex:1},
-  pLabel:{fontSize:10,color:'#9ca3af',fontWeight:'600',letterSpacing:0.3,marginBottom:2},
-  pVal:{fontSize:13,color:'#374151'},
-  pTel:{fontSize:13,color:VERT,fontWeight:'600'},
-  chip:{borderRadius:10,paddingHorizontal:8,paddingVertical:3},
-  chipV:{backgroundColor:'#d1fae5'},chipVT:{fontSize:11,color:VERT,fontWeight:'600'},
-  chipR:{backgroundColor:'#fee2e2'},chipRT:{fontSize:11,color:'#dc2626',fontWeight:'600'},
-  chipA:{backgroundColor:'#fef3c7'},chipAT:{fontSize:11,color:'#92400e',fontWeight:'600'},
-  chipVaccin:{backgroundColor:'#f0fdf4',borderWidth:1,borderColor:'#86efac',borderRadius:6,paddingHorizontal:7,paddingVertical:2},
-  chipVaccinT:{fontSize:11,color:VERT,fontWeight:'600'},
-  vide:{alignItems:'center',paddingVertical:30},
-  videT:{color:'#9ca3af',fontSize:14},
+  container: { flex: 1, backgroundColor: '#f5f6f5' },
+  loader:    { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  loaderT:   { marginTop: 12, color: '#00695c', fontSize: 14 },
+  scroll:    { flex: 1 },
+
+  topbar:   { backgroundColor: '#fff', paddingHorizontal: 16, paddingVertical: 13, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 0.5, borderBottomColor: '#d1d5db' },
+  topTitre: { fontSize: 18, fontWeight: '600', color: '#111827' },
+  topDate:  { fontSize: 11, color: '#6b7280', marginTop: 2 },
+  avatar:   { width: 34, height: 34, borderRadius: 17, justifyContent: 'center', alignItems: 'center' },
+  avatarT:  { color: '#fff', fontSize: 12, fontWeight: '600' },
+
+  identite: { backgroundColor: '#fff', paddingHorizontal: 16, paddingVertical: 9, borderBottomWidth: 0.5, borderBottomColor: '#e5e7eb' },
+  idNom:    { fontSize: 14, fontWeight: '500', color: '#111827' },
+  idRole:   { fontSize: 11, color: '#6b7280', marginTop: 2 },
+
+  statsGrid:     { flexDirection: 'row', paddingHorizontal: 10, paddingTop: 10, gap: 8 },
+  stat:          { flex: 1, backgroundColor: '#fff', borderRadius: 10, padding: 11, borderWidth: 0.5, borderColor: '#e5e7eb', position: 'relative', overflow: 'hidden', elevation: 1 },
+  statLabel:     { fontSize: 9, color: '#6b7280', fontWeight: '500', letterSpacing: 0.4, lineHeight: 13, textTransform: 'uppercase' },
+  statVal:       { fontSize: 28, fontWeight: '400', marginTop: 3 },
+  statCentreNom: { fontSize: 14, fontWeight: '500', color: '#111827', marginTop: 4 },
+  statSub:       { fontSize: 10, color: '#9ca3af', marginTop: 2 },
+  statIco:       { position: 'absolute', top: 9, right: 9, width: 28, height: 28, borderRadius: 7, justifyContent: 'center', alignItems: 'center' },
+  statIcoE:      { fontSize: 14 },
+
+  card:     { backgroundColor: '#fff', borderRadius: 12, padding: 13, marginHorizontal: 10, marginTop: 10, borderWidth: 0.5, borderColor: '#e5e7eb' },
+  secHeadT: { fontSize: 10, fontWeight: '600', color: '#6b7280', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 10 },
+
+  tabsRow:  { flexDirection: 'row', gap: 8, marginBottom: 10 },
+  tab:      { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 0.5, borderColor: '#d1d5db', backgroundColor: '#fff' },
+  tabActif: { backgroundColor: '#00695c', borderColor: '#00695c' },
+  tabRetard:{ backgroundColor: '#dc2626', borderColor: '#dc2626' },
+  tabT:     { fontSize: 11, color: '#6b7280', fontWeight: '500' },
+  tabActifT:{ color: '#fff', fontWeight: '600' },
+
+  carteEnfant: { backgroundColor: '#fff', borderRadius: 10, padding: 11, marginBottom: 7, borderLeftWidth: 3, borderLeftColor: '#00695c', borderTopWidth: 0.5, borderTopColor: '#e5e7eb', borderRightWidth: 0.5, borderRightColor: '#e5e7eb', borderBottomWidth: 0.5, borderBottomColor: '#e5e7eb' },
+  carteHead:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3 },
+  eNom:        { fontSize: 13, fontWeight: '500', color: '#111827', flex: 1 },
+  eCode:       { fontSize: 10, color: '#9ca3af', marginBottom: 6 },
+  eDate:       { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
+  eDateT:      { fontSize: 11, color: '#6b7280' },
+  eSep:        { height: 0.5, backgroundColor: '#e5e7eb', marginBottom: 7 },
+  eGrid:       { flexDirection: 'row' },
+  eCol:        { flex: 1 },
+  eLabel:      { fontSize: 9, color: '#9ca3af', fontWeight: '500', letterSpacing: 0.3, textTransform: 'uppercase', marginBottom: 2 },
+  eVal:        { fontSize: 11, color: '#374151' },
+  eTel:        { fontSize: 11, color: '#00695c', fontWeight: '500' },
+
+  chip:        { borderRadius: 20, paddingHorizontal: 8, paddingVertical: 2 },
+  chipT:       { fontSize: 10, fontWeight: '500' },
+  chipVaccin:  { backgroundColor: '#dbeafe', borderRadius: 20, paddingHorizontal: 8, paddingVertical: 2 },
+  chipVaccinT: { fontSize: 10, fontWeight: '500', color: '#1d4ed8' },
+
+  vide:  { alignItems: 'center', paddingVertical: 24 },
+  videT: { color: '#9ca3af', fontSize: 13 },
+
+  navbar:   { backgroundColor: '#fff', borderTopWidth: 0.5, borderTopColor: '#e5e7eb', flexDirection: 'row', paddingVertical: 9, paddingBottom: 10 },
+  navItem:  { flex: 1, alignItems: 'center' },
+  navLabel: { fontSize: 10, color: '#9ca3af' },
 });
