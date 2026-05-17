@@ -2,15 +2,48 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   SafeAreaView, StatusBar, RefreshControl, ActivityIndicator,
-  Modal, Animated, Dimensions,
+  Modal, Animated, Dimensions, Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { API_URL } from './config';
+import Svg, { Path, Circle, Line, Polyline, Rect, Polygon } from 'react-native-svg';
 
-const { width: SCREEN_W } = Dimensions.get('window');
+const { width: SW } = Dimensions.get('window');
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
+// ─── PALETTE ─────────────────────────────────────────────────────────────────
+const C = {
+  primary:  '#065f46',
+  bg:       '#f4f6f4',
+  white:    '#ffffff',
+  danger:   '#dc2626',
+  warn:     '#d97706',
+  success:  '#059669',
+  textLight:'#9ca3af',
+  textMid:  '#6b7280',
+  textDark: '#111827',
+};
+
+// ─── SVG ICONS ────────────────────────────────────────────────────────────────
+const Icon = ({ name, size = 22, color = C.primary, sw = 1.8 }) => {
+  const p = { stroke: color, strokeWidth: sw, fill: 'none', strokeLinecap: 'round', strokeLinejoin: 'round' };
+  const map = {
+    home:     <Svg width={size} height={size} viewBox="0 0 24 24"><Path {...p} d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><Polyline {...p} points="9 22 9 12 15 12 15 22"/></Svg>,
+    mapPin:   <Svg width={size} height={size} viewBox="0 0 24 24"><Path {...p} d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><Circle {...p} cx="12" cy="10" r="3"/></Svg>,
+    phone:    <Svg width={size} height={size} viewBox="0 0 24 24"><Path {...p} d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.4 2 2 0 0 1 3.6 1.22h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.82a16 16 0 0 0 6.29 6.29l.95-.95a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></Svg>,
+    user:     <Svg width={size} height={size} viewBox="0 0 24 24"><Path {...p} d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><Circle {...p} cx="12" cy="7" r="4"/></Svg>,
+    menu:     <Svg width={size} height={size} viewBox="0 0 24 24"><Line {...p} x1="3" y1="6" x2="21" y2="6"/><Line {...p} x1="3" y1="12" x2="21" y2="12"/><Line {...p} x1="3" y1="18" x2="21" y2="18"/></Svg>,
+    bell:     <Svg width={size} height={size} viewBox="0 0 24 24"><Path {...p} d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><Path {...p} d="M13.73 21a2 2 0 0 1-3.46 0"/></Svg>,
+    logout:   <Svg width={size} height={size} viewBox="0 0 24 24"><Path {...p} d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><Polyline {...p} points="16 17 21 12 16 7"/><Line {...p} x1="21" y1="12" x2="9" y2="12"/></Svg>,
+    settings: <Svg width={size} height={size} viewBox="0 0 24 24"><Circle {...p} cx="12" cy="12" r="3"/><Path {...p} d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></Svg>,
+    chevron:  <Svg width={size} height={size} viewBox="0 0 24 24"><Polyline {...p} points="9 18 15 12 9 6"/></Svg>,
+    syringe:  <Svg width={size} height={size} viewBox="0 0 24 24"><Line {...p} x1="3" y1="21" x2="7" y2="17"/><Line {...p} x1="7" y1="17" x2="16" y2="8"/><Line {...p} x1="16" y1="8" x2="20" y2="4"/><Line {...p} x1="18" y1="2" x2="22" y2="6"/><Line {...p} x1="6" y1="15" x2="15" y2="6"/><Line {...p} x1="9" y1="18" x2="18" y2="9"/></Svg>,
+    clipboard:<Svg width={size} height={size} viewBox="0 0 24 24"><Path {...p} d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><Rect {...p} x="8" y="2" width="8" height="4" rx="1" ry="1"/><Line {...p} x1="9" y1="12" x2="15" y2="12"/><Line {...p} x1="9" y1="16" x2="12" y2="16"/></Svg>,
+  };
+  return map[name] || null;
+};
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
 const formatDate = (d) => {
   if (!d) return '—';
   const dt = new Date(d);
@@ -25,12 +58,16 @@ const formatDateCourt = (d) => {
 };
 const calculerAge = (dn) => {
   if (!dn) return '';
-  const mois =
-    (new Date().getFullYear() - new Date(dn).getFullYear()) * 12 +
-    (new Date().getMonth() - new Date(dn).getMonth());
-  if (mois < 1) return "< 1 mois";
-  if (mois < 24) return `${mois} mois`;
-  return `${Math.floor(mois / 12)} ans`;
+  // Calcul entier uniquement — pas de décimale
+  const now       = new Date();
+  const naissance = new Date(dn);
+  const diffMs    = now - naissance;
+  const jours     = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  const mois      = Math.floor(jours / 30);
+  const ans       = Math.floor(jours / 365);
+  if (jours < 30)  return `${jours}j`;
+  if (mois < 24)   return `${mois} mois`;
+  return `${ans} ans`;
 };
 const statutVaccin = (v) => {
   if (v.date_administration) return 'fait';
@@ -45,77 +82,53 @@ const extraireTableau = (res) => {
   return [];
 };
 
-// ─── Initiales avatar ────────────────────────────────────────────────────────
-const Initiales = ({ prenom = '', nom = '', size = 38, bg = '#065f46', color = '#fff', fontSize = 15 }) => (
+// ─── INITIALES ───────────────────────────────────────────────────────────────
+const Initiales = ({ prenom = '', nom = '', size = 38, bg = C.primary, color = '#fff', fontSize = 15 }) => (
   <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: bg, justifyContent: 'center', alignItems: 'center' }}>
-    <Text style={{ color, fontSize, fontWeight: '700', letterSpacing: 0.5 }}>
+    <Text style={{ color, fontSize, fontWeight: '700' }}>
       {(prenom[0] ?? '').toUpperCase()}{(nom[0] ?? '').toUpperCase()}
     </Text>
   </View>
 );
 
-// ─── Modal déconnexion ───────────────────────────────────────────────────────
-const ModalDeconnexion = ({ visible, onConfirm, onCancel }) => {
-  const scale = useRef(new Animated.Value(0.85)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (visible) {
-      Animated.parallel([
-        Animated.spring(scale, { toValue: 1, useNativeDriver: true, tension: 120, friction: 8 }),
-        Animated.timing(opacity, { toValue: 1, duration: 180, useNativeDriver: true }),
-      ]).start();
-    } else {
-      scale.setValue(0.85);
-      opacity.setValue(0);
-    }
-  }, [visible]);
-
-  return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={onCancel}>
-      <Animated.View style={[S.modalOverlay, { opacity }]}>
-        <Animated.View style={[S.modalCard, { transform: [{ scale }] }]}>
-          {/* Icône */}
-          <View style={S.modalIconBox}>
-            <Text style={S.modalIconText}>⬡</Text>
-            <View style={S.modalIconInner}>
-              <Text style={{ fontSize: 22 }}>🚪</Text>
-            </View>
-          </View>
-          <Text style={S.modalTitle}>Déconnexion</Text>
-          <Text style={S.modalSub}>Voulez-vous vraiment quitter votre session VacciBénin ?</Text>
-          <View style={S.modalBtns}>
-            <TouchableOpacity style={S.modalBtnCancel} onPress={onCancel}>
-              <Text style={S.modalBtnCancelT}>Annuler</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={S.modalBtnConfirm} onPress={onConfirm}>
-              <Text style={S.modalBtnConfirmT}>Se déconnecter</Text>
-            </TouchableOpacity>
-          </View>
-        </Animated.View>
-      </Animated.View>
-    </Modal>
-  );
-};
-
-// ─── Composant principal ─────────────────────────────────────────────────────
+// ─── COMPOSANT PRINCIPAL 
 export default function DashboardParent({ navigation }) {
-  const [loading, setLoading]           = useState(true);
-  const [refreshing, setRefreshing]     = useState(false);
-  const [parent, setParent]             = useState(null);
-  const [enfants, setEnfants]           = useState([]);
-  const [enfantActif, setEnfantActif]   = useState(null);
-  const [vaccins, setVaccins]           = useState([]);
-  const [loadingVacc, setLoadingVacc]   = useState(false);
-  const [showDecoModal, setShowDecoModal] = useState(false);
+  const [loading, setLoading]             = useState(true);
+  const [refreshing, setRefreshing]       = useState(false);
+  const [parent, setParent]               = useState(null);
+  const [enfants, setEnfants]             = useState([]);
+  const [enfantActif, setEnfantActif]     = useState(null);
+  const [vaccins, setVaccins]             = useState([]);
+  const [loadingVacc, setLoadingVacc]     = useState(false);
+  const [logoutModal, setLogoutModal]     = useState(false);
+  const [drawerOpen, setDrawerOpen]       = useState(false);
+  const [activeNav, setActiveNav]         = useState('home');
 
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim    = useRef(new Animated.Value(0)).current;
+  const drawerAnim  = useRef(new Animated.Value(-SW * 0.75)).current;
+  const overlayAnim = useRef(new Animated.Value(0)).current;
 
+  // ── Drawer 
+  const openDrawer = () => {
+    setDrawerOpen(true);
+    Animated.parallel([
+      Animated.spring(drawerAnim,  { toValue: 0, useNativeDriver: true, tension: 65, friction: 11 }),
+      Animated.timing(overlayAnim, { toValue: 1, duration: 250, useNativeDriver: true }),
+    ]).start();
+  };
+  const closeDrawer = () => {
+    Animated.parallel([
+      Animated.spring(drawerAnim,  { toValue: -SW * 0.75, useNativeDriver: true, tension: 65, friction: 11 }),
+      Animated.timing(overlayAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
+    ]).start(() => setDrawerOpen(false));
+  };
+
+  // ── Chargement 
   const chargerVaccins = async (enfantId, tokenParam) => {
     setLoadingVacc(true);
     try {
-      const token      = tokenParam || await AsyncStorage.getItem('token');
-      const typeUsers  = await AsyncStorage.getItem('type_users') ?? 'mere';
+      const token     = tokenParam || await AsyncStorage.getItem('token');
+      const typeUsers = await AsyncStorage.getItem('type_users') ?? 'mere';
       const res = await axios.get(`${API_URL}/parent/enfants/${enfantId}/vaccinations`, {
         headers: { Authorization: `Bearer ${token}`, 'X-Type-Users': typeUsers },
       });
@@ -137,7 +150,6 @@ export default function DashboardParent({ navigation }) {
       const token     = await AsyncStorage.getItem('token');
       const typeUsers = await AsyncStorage.getItem('type_users') ?? 'mere';
       const h = { Authorization: `Bearer ${token}`, 'X-Type-Users': typeUsers };
-
       const [profilRes, enfantsRes] = await Promise.all([
         axios.get(`${API_URL}/profil`,         { headers: h }),
         axios.get(`${API_URL}/parent/enfants`, { headers: h }),
@@ -163,8 +175,8 @@ export default function DashboardParent({ navigation }) {
     await chargerVaccins(e.id);
   };
 
-  const confirmerDeconnexion = async () => {
-    setShowDecoModal(false);
+  const handleLogout = async () => {
+    setLogoutModal(false);
     await AsyncStorage.multiRemove(['token', 'type_users', 'user']);
     navigation.replace('Connexion');
   };
@@ -178,47 +190,39 @@ export default function DashboardParent({ navigation }) {
   const pctCouv        = nbTotal > 0 ? Math.round((nbFaits / nbTotal) * 100) : 0;
   const prochainVaccin = vaccins.find(v => !v.date_administration);
   const aUnRetard      = vaccins.some(v => statutVaccin(v) === 'retard');
-
-  const barColor = pctCouv >= 90 ? '#065f46' : pctCouv >= 70 ? '#d97706' : '#dc2626';
+  const barColor       = pctCouv >= 90 ? C.primary : pctCouv >= 70 ? C.warn : C.danger;
 
   if (loading) return (
     <View style={S.loader}>
-      <ActivityIndicator size="large" color="#065f46" />
+      <ActivityIndicator size="large" color={C.primary} />
       <Text style={S.loaderT}>Chargement…</Text>
     </View>
   );
 
+  const prenom   = parent?.prenom ?? '';
+  const nom      = parent?.nom    ?? '';
+  const initiales = (prenom[0] ?? '').toUpperCase() + (nom[0] ?? '').toUpperCase();
+
   return (
     <SafeAreaView style={S.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#065f46" />
-      <ModalDeconnexion
-        visible={showDecoModal}
-        onConfirm={confirmerDeconnexion}
-        onCancel={() => setShowDecoModal(false)}
-      />
+      <StatusBar barStyle="light-content" backgroundColor={C.primary} />
 
-      {/* ══════════════ HEADER ══════════════ */}
+      {/* ══ HEADER  */}
       <View style={S.header}>
-        {/* Ligne du haut */}
         <View style={S.headerTop}>
           <View style={{ flex: 1 }}>
-            <Text style={S.hdrGreeting}>Bonjour </Text>
-            <Text style={S.hdrName}>
-              {parent?.prenom ?? ''} {parent?.nom ?? ''}
-            </Text>
+            <Text style={S.hdrGreeting}>Bonjour</Text>
+            <Text style={S.hdrName}>{prenom} {nom}</Text>
           </View>
           <View style={S.hdrActions}>
-            {/* Cloche notif */}
+            {/* Cloche notifications */}
             <TouchableOpacity style={S.hdrBtn}>
-              <Text style={S.hdrBtnIcon}>🔔</Text>
+              <Icon name="bell" size={20} color="#fff" />
               <View style={S.notifDot} />
             </TouchableOpacity>
-            {/* Avatar + menu déco */}
-            <TouchableOpacity style={S.avatarBtn} onPress={() => setShowDecoModal(true)}>
-              <Initiales prenom={parent?.prenom} nom={parent?.nom} size={36} bg="rgba(255,255,255,0.22)" color="#fff" fontSize={13} />
-              <View style={S.avatarChevron}>
-                <Text style={{ color: '#fff', fontSize: 8 }}>▼</Text>
-              </View>
+            {/* Hamburger menu — comme Agent et Responsable */}
+            <TouchableOpacity style={S.hdrBtn} onPress={openDrawer}>
+              <Icon name="menu" size={22} color="#fff" />
             </TouchableOpacity>
           </View>
         </View>
@@ -241,27 +245,20 @@ export default function DashboardParent({ navigation }) {
         )}
       </View>
 
-      {/* ══════════════ CONTENU ══════════════ */}
+      {/* ══ CONTENU  */}
       <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
         <ScrollView
           style={S.scroll}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#065f46']} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[C.primary]} />}
         >
           {enfantActif ? (
             <>
-              {/* ── Carte enfant ── */}
+              {/* Carte enfant */}
               <View style={S.card}>
                 <View style={S.ficheHead}>
                   <View style={S.ficheAvatar}>
-                    <Initiales
-                      prenom={enfantActif.prenom}
-                      nom={enfantActif.nom}
-                      size={44}
-                      bg="#ecfdf5"
-                      color="#065f46"
-                      fontSize={15}
-                    />
+                    <Initiales prenom={enfantActif.prenom} nom={enfantActif.nom} size={44} bg="#ecfdf5" color={C.primary} fontSize={15} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={S.ficheNom}>{enfantActif.prenom} {enfantActif.nom}</Text>
@@ -271,8 +268,8 @@ export default function DashboardParent({ navigation }) {
                     <Text style={S.ficheAge}>{calculerAge(enfantActif.date_naissance)}</Text>
                   </View>
                   <View style={[S.badgeStatut, aUnRetard ? S.badgeRetard : S.badgeOk]}>
-                    <View style={[S.badgeDot, { backgroundColor: aUnRetard ? '#dc2626' : '#059669' }]} />
-                    <Text style={[S.badgeStatutT, { color: aUnRetard ? '#dc2626' : '#059669' }]}>
+                    <View style={[S.badgeDot, { backgroundColor: aUnRetard ? C.danger : C.success }]} />
+                    <Text style={[S.badgeStatutT, { color: aUnRetard ? C.danger : C.success }]}>
                       {aUnRetard ? 'En retard' : 'À jour'}
                     </Text>
                   </View>
@@ -291,16 +288,14 @@ export default function DashboardParent({ navigation }) {
                 </View>
               </View>
 
-              {/* ── Prochain vaccin ── */}
+              {/* Prochain vaccin */}
               {prochainVaccin && (
                 <View style={S.nextCard}>
                   <View style={S.nextLeft}>
                     <Text style={S.nextLabel}>Prochain vaccin</Text>
-                    <Text style={S.nextNom}>
-                      {prochainVaccin.vaccin || prochainVaccin.nom_vaccin || '—'}
-                    </Text>
+                    <Text style={S.nextNom}>{prochainVaccin.vaccin || prochainVaccin.nom_vaccin || '—'}</Text>
                     {prochainVaccin.date_prevue && (
-                      <Text style={S.nextDate}>📅 {formatDate(prochainVaccin.date_prevue)}</Text>
+                      <Text style={S.nextDate}>{formatDate(prochainVaccin.date_prevue)}</Text>
                     )}
                   </View>
                   <View style={S.nextBadge}>
@@ -309,38 +304,37 @@ export default function DashboardParent({ navigation }) {
                 </View>
               )}
 
-              {/* ── Actions rapides ── */}
+              {/* Actions rapides */}
               <View style={S.actionsRow}>
                 <TouchableOpacity
-                  style={[S.actionBtn, { backgroundColor: '#065f46' }]}
+                  style={[S.actionBtn, { backgroundColor: C.primary }]}
                   onPress={() => navigation.navigate('CarnetVaccinal', { enfantId: enfantActif.id, enfant: enfantActif })}
                 >
-                  <Text style={S.actionIcon}>📋</Text>
+                  <Icon name="clipboard" size={20} color="#fff" />
                   <Text style={S.actionBtnT}>Carnet vaccinal</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[S.actionBtn, { backgroundColor: '#0369a1' }]}
                   onPress={() => navigation.navigate('CentresProches')}
                 >
-                  <Text style={S.actionIcon}>📍</Text>
+                  <Icon name="mapPin" size={20} color="#fff" />
                   <Text style={S.actionBtnT}>Centre proche</Text>
                 </TouchableOpacity>
               </View>
 
-              {/* ── Carnet vaccinal ── */}
+              {/* Carnet vaccinal */}
               <View style={[S.card, { marginTop: 8 }]}>
                 <View style={S.secHead}>
                   <View style={S.secLine} />
-                  <Text style={S.secHeadT}>CARNET VACCINAL  {enfantActif.prenom?.toUpperCase()}</Text>
+                  <Text style={S.secHeadT}>CARNET VACCINAL — {enfantActif.prenom?.toUpperCase()}</Text>
                 </View>
 
-                {/* Légende */}
                 <View style={S.legende}>
                   {[
-                    { color: '#059669', bg: '#d1fae5', label: 'Fait' },
-                    { color: '#dc2626', bg: '#fee2e2', label: 'En retard' },
-                    { color: '#d97706', bg: '#fef3c7', label: 'À venir' },
-                  ].map((l) => (
+                    { color: C.success, label: 'Fait' },
+                    { color: C.danger,  label: 'En retard' },
+                    { color: C.warn,    label: 'À venir' },
+                  ].map(l => (
                     <View key={l.label} style={S.legendItem}>
                       <View style={[S.legendDot, { backgroundColor: l.color }]} />
                       <Text style={S.legendT}>{l.label}</Text>
@@ -349,192 +343,235 @@ export default function DashboardParent({ navigation }) {
                 </View>
 
                 {loadingVacc ? (
-                  <View style={S.vide}><ActivityIndicator size="small" color="#065f46" /></View>
+                  <View style={S.vide}><ActivityIndicator size="small" color={C.primary} /></View>
                 ) : vaccins.length === 0 ? (
                   <View style={S.vide}><Text style={S.videT}>Aucune vaccination enregistrée</Text></View>
-                ) : (
-                  vaccins.map((v, i) => {
-                    const statut    = statutVaccin(v);
-                    const estFait   = statut === 'fait';
-                    const estRetard = statut === 'retard';
-                    const chipBg    = estFait ? '#d1fae5' : estRetard ? '#fee2e2' : '#fef3c7';
-                    const chipColor = estFait ? '#059669' : estRetard ? '#dc2626' : '#d97706';
-                    const bordureColor = estFait ? '#059669' : estRetard ? '#dc2626' : '#d97706';
-
-                    return (
-                      <View key={i} style={[
-                        S.vaccinLigne,
-                        { borderLeftColor: bordureColor },
-                        i < vaccins.length - 1 && S.vaccinSep,
-                      ]}>
-                        <View style={{ flex: 1 }}>
-                          <Text style={S.vaccinNom}>{v.vaccin || v.nom_vaccin || '—'}</Text>
-                          <Text style={S.vaccinMeta}>
-                            {estFait
-                              ? `✓ Administré le ${formatDateCourt(v.date_administration)} · ${v.centre_sante?.nom ?? '—'}`
-                              : estRetard
-                              ? `⚠ En retard — prévu le ${formatDateCourt(v.date_prevue)}`
-                              : `Prévu le ${formatDateCourt(v.date_prevue)}${v.age_cible ? ` · ${v.age_cible}` : ''}`}
-                          </Text>
-                        </View>
-                        <View style={[S.chipVacc, { backgroundColor: chipBg }]}>
-                          <Text style={[S.chipVaccT, { color: chipColor }]}>
-                            {estFait ? 'Fait' : estRetard ? 'En retard' : 'À venir'}
-                          </Text>
-                        </View>
+                ) : vaccins.map((v, i) => {
+                  const statut      = statutVaccin(v);
+                  const estFait     = statut === 'fait';
+                  const estRetard   = statut === 'retard';
+                  const chipBg      = estFait ? '#d1fae5' : estRetard ? '#fee2e2' : '#fef3c7';
+                  const chipColor   = estFait ? C.success : estRetard ? C.danger : C.warn;
+                  const bordureColor = chipColor;
+                  return (
+                    <View key={i} style={[S.vaccinLigne, { borderLeftColor: bordureColor }, i < vaccins.length - 1 && S.vaccinSep]}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={S.vaccinNom}>{v.vaccin || v.nom_vaccin || '—'}</Text>
+                        <Text style={S.vaccinMeta}>
+                          {estFait
+                            ? `Administré le ${formatDateCourt(v.date_administration)} · ${v.centre_sante?.nom ?? '—'}`
+                            : estRetard
+                            ? `En retard — prévu le ${formatDateCourt(v.date_prevue)}`
+                            : `Prévu le ${formatDateCourt(v.date_prevue)}${v.age_cible ? ` · ${v.age_cible}` : ''}`}
+                        </Text>
                       </View>
-                    );
-                  })
-                )}
+                      <View style={[S.chipVacc, { backgroundColor: chipBg }]}>
+                        <Text style={[S.chipVaccT, { color: chipColor }]}>
+                          {estFait ? 'Fait' : estRetard ? 'En retard' : 'À venir'}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })}
               </View>
             </>
           ) : (
             <View style={S.emptyState}>
-              <Text style={S.emptyIcon}>👶</Text>
+              <Icon name="syringe" size={48} color={C.textLight} />
               <Text style={S.emptyTitle}>Aucun enfant enregistré</Text>
               <Text style={S.emptySub}>Vos enfants enregistrés dans le système apparaîtront ici.</Text>
             </View>
           )}
-
           <View style={{ height: 90 }} />
         </ScrollView>
       </Animated.View>
 
-      {/* ══════════════ NAVBAR ══════════════ */}
+      {/* ══ NAVBAR BOTTOM avec icônes SVG  */}
       <View style={S.navbar}>
         {[
-          { label: 'Accueil', screen: null, actif: true },
-          { label: 'Centres', screen: 'CentresProches' },
-          { label: 'Contact', screen: 'Contact' },
-        ].map((item) => (
-          <TouchableOpacity
-            key={item.label}
-            style={S.navItem}
-            onPress={() => item.screen && navigation.navigate(item.screen)}
-          >
-            <Text style={[S.navLabel, item.actif && S.navLabelActif]}>{item.label}</Text>
-            {item.actif && <View style={S.navIndicator} />}
+          { key: 'home',    icon: 'home',    label: 'Accueil',  action: () => setActiveNav('home') },
+          { key: 'centres', icon: 'mapPin',  label: 'Centres',  action: () => { setActiveNav('centres'); navigation.navigate('CentresProches'); } },
+          { key: 'contact', icon: 'phone',   label: 'Contact',  action: () => { setActiveNav('contact'); navigation.navigate('Contact'); } },
+          { key: 'profil',  icon: 'user',    label: 'Profil',   action: () => { setActiveNav('profil'); navigation.navigate('Profil'); } },
+        ].map(item => (
+          <TouchableOpacity key={item.key} style={S.navItem} onPress={item.action} activeOpacity={0.8}>
+            <Icon
+              name={item.icon}
+              size={22}
+              color={activeNav === item.key ? C.primary : C.textLight}
+              sw={activeNav === item.key ? 2.2 : 1.6}
+            />
+            <Text style={[S.navLabel, activeNav === item.key && S.navLabelActif]}>{item.label}</Text>
+            {activeNav === item.key && <View style={S.navDot} />}
           </TouchableOpacity>
         ))}
-        {/* Déconnexion dans la navbar — icône standard */}
-        <TouchableOpacity style={S.navItem} onPress={() => setShowDecoModal(true)}>
-          <Text style={[S.navLabel, { color: '#dc2626' }]}>Déco.</Text>
-        </TouchableOpacity>
       </View>
+
+      {/* ══ DRAWER ══════════════════════════════════════════════════════════ */}
+      {drawerOpen && (
+        <View style={StyleSheet.absoluteFill}>
+          <Animated.View style={[S.drawerOverlay, { opacity: overlayAnim }]}>
+            <TouchableOpacity style={StyleSheet.absoluteFill} onPress={closeDrawer} />
+          </Animated.View>
+          <Animated.View style={[S.drawer, { transform: [{ translateX: drawerAnim }] }]}>
+            <View style={S.drawerHead}>
+              <View style={S.drawerAvatarBox}>
+                <Text style={S.drawerAvatarT}>{initiales || 'PA'}</Text>
+              </View>
+              <Text style={S.drawerNom}>{prenom} {nom}</Text>
+              <Text style={S.drawerRole}>Parent</Text>
+            </View>
+            <View style={S.drawerMenu}>
+              {[
+                { label: 'Mon profil',  icon: 'user',     route: 'Profil'     },
+                { label: 'Paramètres', icon: 'settings', route: 'Parametres' },
+              ].map(item => (
+                <TouchableOpacity key={item.route} style={S.drawerItem}
+                  onPress={() => { closeDrawer(); navigation.navigate(item.route); }} activeOpacity={0.8}>
+                  <Icon name={item.icon} size={20} color={C.primary} />
+                  <Text style={S.drawerItemT}>{item.label}</Text>
+                  <Icon name="chevron" size={16} color={C.textLight} />
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TouchableOpacity style={S.drawerLogout}
+              onPress={() => { closeDrawer(); setTimeout(() => setLogoutModal(true), 300); }} activeOpacity={0.8}>
+              <Icon name="logout" size={20} color={C.danger} />
+              <Text style={S.drawerLogoutT}>Déconnexion</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
+      )}
+
+      {/* ══ MODAL DÉCONNEXION ════════════════════════════════════════════════ */}
+      <Modal visible={logoutModal} transparent animationType="fade" onRequestClose={() => setLogoutModal(false)}>
+        <View style={S.modalOverlay}>
+          <View style={S.modalCard}>
+            <View style={S.modalIco}>
+              <Icon name="logout" size={28} color={C.danger} />
+            </View>
+            <Text style={S.modalTitle}>Déconnexion</Text>
+            <Text style={S.modalBody}>Voulez-vous vraiment vous déconnecter de VacciBénin ?</Text>
+            <View style={S.modalBtns}>
+              <TouchableOpacity style={[S.modalBtn, { backgroundColor: '#f3f4f6' }]} onPress={() => setLogoutModal(false)} activeOpacity={0.8}>
+                <Text style={[S.modalBtnT, { color: C.textMid }]}>Annuler</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[S.modalBtn, { backgroundColor: C.danger }]} onPress={handleLogout} activeOpacity={0.8}>
+                <Text style={[S.modalBtnT, { color: C.white }]}>Déconnexion</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
+// ─── STYLES ──────────────────────────────────────────────────────────────────
 const S = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f4f6f4' },
-  loader:    { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f4f6f4' },
-  loaderT:   { marginTop: 12, color: '#065f46', fontSize: 13, fontWeight: '500' },
+  container: { flex: 1, backgroundColor: C.bg },
+  loader:    { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.bg },
+  loaderT:   { marginTop: 12, color: C.primary, fontSize: 13, fontWeight: '500' },
   scroll:    { flex: 1 },
 
-  // ── Header
-  header:    { backgroundColor: '#065f46', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 14 },
+  // Header
+  header:    { backgroundColor: C.primary, paddingHorizontal: 16, paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 12 : 14, paddingBottom: 14 },
   headerTop: { flexDirection: 'row', alignItems: 'center' },
   hdrGreeting:{ fontSize: 11, color: 'rgba(255,255,255,0.6)', letterSpacing: 0.3 },
   hdrName:   { fontSize: 18, fontWeight: '600', color: '#fff', marginTop: 1 },
-  hdrActions:{ flexDirection: 'row', alignItems: 'center', gap: 10 },
-  hdrBtn:    { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center', position: 'relative' },
-  hdrBtnIcon:{ fontSize: 15 },
-  notifDot:  { position: 'absolute', top: 4, right: 4, width: 7, height: 7, backgroundColor: '#f87171', borderRadius: 4, borderWidth: 1.5, borderColor: '#065f46' },
-  avatarBtn: { position: 'relative' },
-  avatarChevron:{ position: 'absolute', bottom: -2, right: -2, backgroundColor: '#065f46', borderRadius: 6, paddingHorizontal: 2, paddingVertical: 1 },
+  hdrActions:{ flexDirection: 'row', alignItems: 'center', gap: 8 },
+  hdrBtn:    { padding: 8, position: 'relative' },
+  notifDot:  { position: 'absolute', top: 6, right: 6, width: 7, height: 7, backgroundColor: '#f87171', borderRadius: 4, borderWidth: 1.5, borderColor: C.primary },
 
   chipEnfant:      { borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.35)', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 6, marginRight: 8 },
   chipEnfantActif: { backgroundColor: '#fff', borderColor: '#fff' },
   chipEnfantT:     { fontSize: 12, fontWeight: '500', color: 'rgba(255,255,255,0.8)' },
-  chipEnfantTActif:{ color: '#065f46', fontWeight: '700' },
+  chipEnfantTActif:{ color: C.primary, fontWeight: '700' },
 
-  // ── Cards
-  card: { backgroundColor: '#fff', borderRadius: 14, padding: 14, marginHorizontal: 12, marginTop: 12, borderWidth: 0.5, borderColor: '#e5e7eb', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1 },
+  card: { backgroundColor: C.white, borderRadius: 14, padding: 14, marginHorizontal: 12, marginTop: 12, borderWidth: 0.5, borderColor: '#e5e7eb', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1 },
 
-  // ── Fiche enfant
-  ficheHead:  { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
-  ficheAvatar:{ marginRight: 12 },
-  ficheNom:   { fontSize: 15, fontWeight: '600', color: '#111827' },
-  ficheMeta:  { fontSize: 11, color: '#9ca3af', marginTop: 2 },
-  ficheAge:   { fontSize: 12, fontWeight: '500', color: '#065f46', marginTop: 2 },
-  badgeStatut:{ flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 20, paddingHorizontal: 9, paddingVertical: 4, marginLeft: 6 },
-  badgeOk:    { backgroundColor: '#ecfdf5' },
-  badgeRetard:{ backgroundColor: '#fef2f2' },
-  badgeDot:   { width: 6, height: 6, borderRadius: 3 },
+  ficheHead:   { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
+  ficheAvatar: { marginRight: 12 },
+  ficheNom:    { fontSize: 15, fontWeight: '600', color: C.textDark },
+  ficheMeta:   { fontSize: 11, color: C.textLight, marginTop: 2 },
+  ficheAge:    { fontSize: 12, fontWeight: '500', color: C.primary, marginTop: 2 },
+  badgeStatut: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 20, paddingHorizontal: 9, paddingVertical: 4, marginLeft: 6 },
+  badgeOk:     { backgroundColor: '#ecfdf5' },
+  badgeRetard: { backgroundColor: '#fef2f2' },
+  badgeDot:    { width: 6, height: 6, borderRadius: 3 },
   badgeStatutT:{ fontSize: 10, fontWeight: '600' },
 
-  // ── Barre progression
-  progSection:{ borderTopWidth: 0.5, borderTopColor: '#f3f4f6', paddingTop: 12 },
-  progRow:    { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-  progLabel:  { fontSize: 11, color: '#6b7280' },
-  progPct:    { fontSize: 12, fontWeight: '700' },
-  progBg:     { height: 6, backgroundColor: '#f3f4f6', borderRadius: 4, overflow: 'hidden', marginBottom: 5 },
-  progFill:   { height: '100%', borderRadius: 4 },
-  progSub:    { fontSize: 10, color: '#9ca3af' },
+  progSection: { borderTopWidth: 0.5, borderTopColor: '#f3f4f6', paddingTop: 12 },
+  progRow:     { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
+  progLabel:   { fontSize: 11, color: C.textMid },
+  progPct:     { fontSize: 12, fontWeight: '700' },
+  progBg:      { height: 6, backgroundColor: '#f3f4f6', borderRadius: 4, overflow: 'hidden', marginBottom: 5 },
+  progFill:    { height: '100%', borderRadius: 4 },
+  progSub:     { fontSize: 10, color: C.textLight },
 
-  // ── Prochain vaccin
-  nextCard:  { backgroundColor: '#ecfdf5', borderRadius: 14, padding: 14, marginHorizontal: 12, marginTop: 8, flexDirection: 'row', alignItems: 'center', borderLeftWidth: 3, borderLeftColor: '#059669', borderWidth: 0.5, borderColor: '#a7f3d0' },
+  nextCard:  { backgroundColor: '#ecfdf5', borderRadius: 14, padding: 14, marginHorizontal: 12, marginTop: 8, flexDirection: 'row', alignItems: 'center', borderLeftWidth: 3, borderLeftColor: C.success, borderWidth: 0.5, borderColor: '#a7f3d0' },
   nextLeft:  { flex: 1 },
-  nextLabel: { fontSize: 10, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.4 },
-  nextNom:   { fontSize: 14, fontWeight: '600', color: '#111827', marginTop: 2 },
-  nextDate:  { fontSize: 11, color: '#6b7280', marginTop: 3 },
-  nextBadge: { backgroundColor: '#065f46', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5 },
+  nextLabel: { fontSize: 10, color: C.textMid, textTransform: 'uppercase', letterSpacing: 0.4 },
+  nextNom:   { fontSize: 14, fontWeight: '600', color: C.textDark, marginTop: 2 },
+  nextDate:  { fontSize: 11, color: C.textMid, marginTop: 3 },
+  nextBadge: { backgroundColor: C.primary, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5 },
   nextBadgeT:{ fontSize: 11, fontWeight: '600', color: '#fff' },
 
-  // ── Actions
   actionsRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 12, marginTop: 8 },
-  actionBtn:  { flex: 1, borderRadius: 12, paddingVertical: 14, alignItems: 'center', gap: 4 },
-  actionIcon: { fontSize: 18 },
+  actionBtn:  { flex: 1, borderRadius: 12, paddingVertical: 14, alignItems: 'center', gap: 6, flexDirection: 'row', justifyContent: 'center' },
   actionBtnT: { color: '#fff', fontSize: 12, fontWeight: '600' },
 
-  // ── Section head carnet
   secHead:  { flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 8 },
-  secLine:  { width: 3, height: 14, backgroundColor: '#065f46', borderRadius: 2 },
-  secHeadT: { fontSize: 10, fontWeight: '700', color: '#374151', letterSpacing: 0.5 },
+  secLine:  { width: 3, height: 14, backgroundColor: C.primary, borderRadius: 2 },
+  secHeadT: { fontSize: 10, fontWeight: '700', color: C.textDark, letterSpacing: 0.5 },
 
-  // ── Légende
   legende:    { flexDirection: 'row', gap: 14, marginBottom: 10 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   legendDot:  { width: 7, height: 7, borderRadius: 4 },
-  legendT:    { fontSize: 10, color: '#6b7280' },
+  legendT:    { fontSize: 10, color: C.textMid },
 
-  // ── Lignes vaccin
   vaccinLigne:{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 11, paddingLeft: 10, borderLeftWidth: 3 },
   vaccinSep:  { borderBottomWidth: 0.5, borderBottomColor: '#f3f4f6' },
-  vaccinNom:  { fontSize: 13, fontWeight: '500', color: '#111827' },
-  vaccinMeta: { fontSize: 10, color: '#9ca3af', marginTop: 2 },
+  vaccinNom:  { fontSize: 13, fontWeight: '500', color: C.textDark },
+  vaccinMeta: { fontSize: 10, color: C.textLight, marginTop: 2 },
   chipVacc:   { borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4, marginLeft: 8 },
   chipVaccT:  { fontSize: 10, fontWeight: '600' },
 
-  // ── Empty state
-  emptyState:{ alignItems: 'center', paddingVertical: 60, paddingHorizontal: 30 },
-  emptyIcon: { fontSize: 48, marginBottom: 12 },
-  emptyTitle:{ fontSize: 16, fontWeight: '600', color: '#374151', marginBottom: 6 },
-  emptySub:  { fontSize: 12, color: '#9ca3af', textAlign: 'center', lineHeight: 18 },
+  emptyState: { alignItems: 'center', paddingVertical: 60, paddingHorizontal: 30, gap: 12 },
+  emptyTitle: { fontSize: 16, fontWeight: '600', color: C.textDark },
+  emptySub:   { fontSize: 12, color: C.textLight, textAlign: 'center', lineHeight: 18 },
 
-  // ── Vide inline
   vide:  { alignItems: 'center', paddingVertical: 20 },
-  videT: { color: '#9ca3af', fontSize: 12 },
+  videT: { color: C.textLight, fontSize: 12 },
 
-  // ── Navbar
-  navbar:      { backgroundColor: '#fff', borderTopWidth: 0.5, borderTopColor: '#e5e7eb', flexDirection: 'row', paddingVertical: 10, paddingBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: -1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 2 },
-  navItem:     { flex: 1, alignItems: 'center', gap: 3 },
-  navLabel:    { fontSize: 11, color: '#9ca3af', fontWeight: '500' },
-  navLabelActif:{ color: '#065f46', fontWeight: '700' },
-  navIndicator:{ width: 4, height: 4, borderRadius: 2, backgroundColor: '#065f46' },
+  // Navbar avec icônes SVG
+  navbar:       { flexDirection: 'row', backgroundColor: C.white, paddingBottom: Platform.OS === 'ios' ? 24 : 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#f0f0f0', shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 6 },
+  navItem:      { flex: 1, alignItems: 'center', gap: 3, position: 'relative' },
+  navLabel:     { fontSize: 10, color: C.textLight, fontWeight: '500' },
+  navLabelActif:{ color: C.primary, fontWeight: '700' },
+  navDot:       { position: 'absolute', top: -8, width: 4, height: 4, borderRadius: 2, backgroundColor: C.primary },
 
-  // ── Modal déconnexion
-  modalOverlay:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 30 },
-  modalCard:     { backgroundColor: '#fff', borderRadius: 20, padding: 24, width: '100%', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.15, shadowRadius: 24, elevation: 10 },
-  modalIconBox:  { width: 64, height: 64, justifyContent: 'center', alignItems: 'center', marginBottom: 16, position: 'relative' },
-  modalIconText: { fontSize: 64, color: '#fee2e2', position: 'absolute' },
-  modalIconInner:{ zIndex: 1 },
-  modalTitle:    { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 8 },
-  modalSub:      { fontSize: 13, color: '#6b7280', textAlign: 'center', lineHeight: 20, marginBottom: 22 },
-  modalBtns:     { flexDirection: 'row', gap: 10, width: '100%' },
-  modalBtnCancel:{ flex: 1, borderWidth: 1.5, borderColor: '#e5e7eb', borderRadius: 12, paddingVertical: 13, alignItems: 'center' },
-  modalBtnCancelT:{ fontSize: 13, fontWeight: '600', color: '#374151' },
-  modalBtnConfirm:{ flex: 1, backgroundColor: '#dc2626', borderRadius: 12, paddingVertical: 13, alignItems: 'center' },
-  modalBtnConfirmT:{ fontSize: 13, fontWeight: '600', color: '#fff' },
+  // Drawer
+  drawerOverlay:   { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(6,95,70,0.25)' },
+  drawer:          { position: 'absolute', top: 0, bottom: 0, left: 0, width: SW * 0.75, backgroundColor: C.white, shadowColor: '#000', shadowOffset: { width: 4, height: 0 }, shadowOpacity: 0.12, shadowRadius: 16, elevation: 12 },
+  drawerHead:      { backgroundColor: C.primary, paddingTop: Platform.OS === 'ios' ? 56 : (StatusBar.currentHeight || 24) + 24, paddingBottom: 24, paddingHorizontal: 20 },
+  drawerAvatarBox: { width: 56, height: 56, borderRadius: 28, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
+  drawerAvatarT:   { fontSize: 22, fontWeight: '800', color: C.white },
+  drawerNom:       { fontSize: 16, fontWeight: '700', color: C.white },
+  drawerRole:      { fontSize: 13, color: 'rgba(255,255,255,0.75)', marginTop: 2 },
+  drawerMenu:      { paddingTop: 8 },
+  drawerItem:      { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+  drawerItemT:     { flex: 1, fontSize: 15, color: C.textDark, fontWeight: '500' },
+  drawerLogout:    { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 20, paddingVertical: 16, marginTop: 'auto', borderTopWidth: 1, borderTopColor: '#f0f0f0' },
+  drawerLogoutT:   { fontSize: 15, color: C.danger, fontWeight: '600' },
+
+  // Modal
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', padding: 24 },
+  modalCard:    { backgroundColor: C.white, borderRadius: 20, padding: 28, width: '100%', maxWidth: 340, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.15, shadowRadius: 24, elevation: 12 },
+  modalIco:     { width: 64, height: 64, borderRadius: 32, backgroundColor: '#fee2e2', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
+  modalTitle:   { fontSize: 18, fontWeight: '800', color: C.textDark, marginBottom: 8 },
+  modalBody:    { fontSize: 14, color: C.textMid, textAlign: 'center', lineHeight: 20, marginBottom: 24 },
+  modalBtns:    { flexDirection: 'row', gap: 12, width: '100%' },
+  modalBtn:     { flex: 1, paddingVertical: 13, borderRadius: 12, alignItems: 'center' },
+  modalBtnT:    { fontSize: 14, fontWeight: '700' },
 });
