@@ -22,6 +22,7 @@ import FicheEnfant from './FicheEnfant';
 import { API_URL } from './config';
 
 const Stack = createNativeStackNavigator();
+
 // ─── Icônes SVG ──────────────────────────────────────────────────────────────
 
 /** Seringue / vaccin */
@@ -39,13 +40,13 @@ const IcoSyringe = ({ size = 22, color = 'white' }) => (
 
 /** Stéthoscope / personnel de santé */
 const IcoStethoscope = ({ size = 22, color = 'white' }) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+ <Svg width={size} height={size} viewBox="0 0 24 24" fill="none"
     stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
     <Path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
     <Circle cx="9" cy="7" r="4" />
     <Path d="M23 21v-2a4 4 0 00-3-3.87" />
     <Path d="M16 3.13a4 4 0 010 7.75" />
-  </Svg>
+  </Svg> 
 );
 
 /** Famille / parent */
@@ -141,11 +142,12 @@ export default function App() {
 
   const verifierSession = async () => {
     try {
-      const token = await AsyncStorage.getItem('token');
-      const role  = await AsyncStorage.getItem('role');
-      const user  = await AsyncStorage.getItem('user');
+      const token     = await AsyncStorage.getItem('token');
+      const role      = await AsyncStorage.getItem('role');
+      const user      = await AsyncStorage.getItem('user');
+      const typeUsers = await AsyncStorage.getItem('type_users');
       if (token && role && user) {
-        setSessionInitiale({ token, role, user: JSON.parse(user) });
+        setSessionInitiale({ token, role, typeUsers, user: JSON.parse(user) });
       }
     } catch (e) {
       console.log('Pas de session sauvegardée');
@@ -165,9 +167,9 @@ export default function App() {
   const ecranInitial = () => {
     if (!sessionInitiale) return 'Connexion';
     const role = sessionInitiale.role;
-    if (role === 'mere' || role === 'pere')                               return 'DashboardParent';
-    if (role === 'agent_sante')                                           return 'DashboardAgent';
-    if (role === 'relais')                                                return 'DashboardRelais';
+    if (role === 'mere' || role === 'pere')                                return 'DashboardParent';
+    if (role === 'agent_sante')                                            return 'DashboardAgent';
+    if (role === 'relais')                                                 return 'DashboardRelais';
     if (role === 'responsable_pev' || role === 'direction_departementale') return 'DashboardResponsable';
     return 'Connexion';
   };
@@ -178,12 +180,12 @@ export default function App() {
         <Stack.Screen name="Connexion">
           {(props) => <EcranConnexion {...props} apiUrl={API_URL} />}
         </Stack.Screen>
-        <Stack.Screen name="Inscription"         component={Inscription} />
-        <Stack.Screen name="DashboardParent"     component={DashboardParent} />
-        <Stack.Screen name="DashboardAgent"      component={DashboardAgent} />
-        <Stack.Screen name="DashboardRelais"     component={DashboardRelais} />
+        <Stack.Screen name="Inscription"          component={Inscription} />
+        <Stack.Screen name="DashboardParent"      component={DashboardParent} />
+        <Stack.Screen name="DashboardAgent"       component={DashboardAgent} />
+        <Stack.Screen name="DashboardRelais"      component={DashboardRelais} />
         <Stack.Screen name="DashboardResponsable" component={DashboardResponsable} />
-        <Stack.Screen name="FicheEnfant"         component={FicheEnfant} />
+        <Stack.Screen name="FicheEnfant"          component={FicheEnfant} />
       </Stack.Navigator>
     </NavigationContainer>
   );
@@ -208,8 +210,9 @@ function EcranConnexion({ navigation, apiUrl }) {
 
     try {
       const typesAEssayer = typeUsers === 'personnel' ? ['personnel'] : ['mere', 'pere'];
-      let data = null;
-      let succes = false;
+      let data       = null;
+      let succes     = false;
+      let typeFinal  = typeUsers;
 
       for (const type of typesAEssayer) {
         const reponse = await fetch(`${apiUrl}/login`, {
@@ -218,7 +221,11 @@ function EcranConnexion({ navigation, apiUrl }) {
           body: JSON.stringify({ identifiant, password: motDePasse, type_users: type }),
         });
         data = await reponse.json();
-        if (data.success) { succes = true; break; }
+        if (data.success) {
+          succes    = true;
+          typeFinal = type; // ← on retient le type qui a fonctionné
+          break;
+        }
       }
 
       if (!succes) {
@@ -226,9 +233,11 @@ function EcranConnexion({ navigation, apiUrl }) {
         return;
       }
 
-      await AsyncStorage.setItem('token', data.token);
-      await AsyncStorage.setItem('role',  data.role);
-      await AsyncStorage.setItem('user',  JSON.stringify(data.user));
+      // ── Sauvegarde session complète (type_users inclus) ──
+      await AsyncStorage.setItem('token',      data.token);
+      await AsyncStorage.setItem('role',       data.role);
+      await AsyncStorage.setItem('user',       JSON.stringify(data.user));
+      await AsyncStorage.setItem('type_users', typeFinal); // ← CORRECTION CLÉ
 
       const role = data.role;
       if (role === 'agent_sante')
@@ -258,7 +267,6 @@ function EcranConnexion({ navigation, apiUrl }) {
 
           {/* En-tête */}
           <View style={styles.header}>
-            {/* Logo icône seringue + texte */}
             <View style={styles.logoWrap}>
               <IcoSyringe size={36} color="white" />
             </View>
@@ -287,10 +295,7 @@ function EcranConnexion({ navigation, apiUrl }) {
                   onPress={() => { setTypeUsers('personnel'); setErreur(''); }}
                   disabled={loading}
                 >
-                  <IcoStethoscope
-                    size={16}
-                    color={typeUsers === 'personnel' ? 'white' : '#6b7280'}
-                  />
+                  <IcoStethoscope size={16} color={typeUsers === 'personnel' ? 'white' : '#6b7280'} />
                   <Text style={[styles.toggleTexte, typeUsers === 'personnel' && styles.toggleTexteActif]}>
                     Personnel
                   </Text>
@@ -301,10 +306,7 @@ function EcranConnexion({ navigation, apiUrl }) {
                   onPress={() => { setTypeUsers('parent'); setErreur(''); }}
                   disabled={loading}
                 >
-                  <IcoFamily
-                    size={16}
-                    color={typeUsers === 'parent' ? 'white' : '#6b7280'}
-                  />
+                  <IcoFamily size={16} color={typeUsers === 'parent' ? 'white' : '#6b7280'} />
                   <Text style={[styles.toggleTexte, typeUsers === 'parent' && styles.toggleTexteActif]}>
                     Parent
                   </Text>
@@ -320,7 +322,7 @@ function EcranConnexion({ navigation, apiUrl }) {
               <View style={styles.inputAvecIcone}>
                 <View style={styles.inputIconeGauche}>
                   {typeUsers === 'personnel'
-                    ? <IcoMail size={18} color="#9ca3af" />
+                    ? <IcoMail  size={18} color="#9ca3af" />
                     : <IcoPhone size={18} color="#9ca3af" />
                   }
                 </View>
@@ -355,7 +357,7 @@ function EcranConnexion({ navigation, apiUrl }) {
                 />
                 <TouchableOpacity onPress={() => setVoirMDP(!voirMDP)} style={styles.iconOeil}>
                   {voirMDP
-                    ? <IcoEyeOff size={20} color="#6b7280" />
+                    ? <IcoEyeOff  size={20} color="#6b7280" />
                     : <IcoEyeOpen size={20} color="#6b7280" />
                   }
                 </TouchableOpacity>
@@ -416,7 +418,6 @@ const styles = StyleSheet.create({
   container:        { flex: 1, backgroundColor: '#1a6b3c' },
   scrollContent:    { flexGrow: 1 },
 
-  // Header
   header:           { alignItems: 'center', paddingTop: 60, paddingBottom: 40 },
   logoWrap:         {
     width: 72, height: 72, borderRadius: 20,
@@ -428,7 +429,6 @@ const styles = StyleSheet.create({
   titre:            { fontSize: 30, fontWeight: 'bold', color: 'white', letterSpacing: 0.5 },
   sousTitre:        { fontSize: 13, color: 'rgba(255,255,255,0.75)', marginTop: 4 },
 
-  // Formulaire
   formulaire:       {
     flex: 1, backgroundColor: 'white',
     borderTopLeftRadius: 30, borderTopRightRadius: 30,
@@ -436,7 +436,6 @@ const styles = StyleSheet.create({
   },
   titreFormulaire:  { fontSize: 22, fontWeight: 'bold', color: '#1a3c2e', marginBottom: 16 },
 
-  // Erreur
   erreurBox:        {
     flexDirection: 'row', alignItems: 'flex-start', gap: 8,
     backgroundColor: '#fef2f2', borderRadius: 10,
@@ -445,11 +444,9 @@ const styles = StyleSheet.create({
   },
   erreurTexte:      { flex: 1, fontSize: 13, color: '#dc2626', lineHeight: 20 },
 
-  // Champs
   champGroupe:      { marginBottom: 16 },
   label:            { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 6 },
 
-  // Input avec icône gauche
   inputAvecIcone:   {
     flexDirection: 'row', alignItems: 'center',
     borderWidth: 1.5, borderColor: '#e5e7eb',
@@ -460,7 +457,6 @@ const styles = StyleSheet.create({
   inputMDP:         { flex: 1, paddingVertical: 13, paddingLeft: 4, fontSize: 15, color: '#1f2937' },
   iconOeil:         { padding: 13 },
 
-  // Toggle
   toggleContainer:  {
     flexDirection: 'row', borderRadius: 12,
     overflow: 'hidden', borderWidth: 1.5, borderColor: '#e5e7eb',
@@ -475,11 +471,9 @@ const styles = StyleSheet.create({
   toggleTexte:      { fontSize: 14, fontWeight: '600', color: '#6b7280' },
   toggleTexteActif: { color: 'white' },
 
-  // Mot de passe oublié
   mdpOublie:        { alignSelf: 'flex-end', marginBottom: 20, marginTop: 2 },
   mdpOublieTexte:   { color: '#1a6b3c', fontSize: 14, fontWeight: '500' },
 
-  // Bouton connexion
   boutonConnexion:  {
     backgroundColor: '#1a6b3c', borderRadius: 12,
     padding: 16, alignItems: 'center', elevation: 4,
@@ -487,12 +481,10 @@ const styles = StyleSheet.create({
   boutonDisabled:   { backgroundColor: '#6b9e85', elevation: 0 },
   boutonTexte:      { color: 'white', fontSize: 16, fontWeight: 'bold' },
 
-  // Séparateur
   separateur:       { flexDirection: 'row', alignItems: 'center', marginVertical: 20 },
   ligne:            { flex: 1, height: 1, backgroundColor: '#e5e7eb' },
   separateurTexte:  { marginHorizontal: 12, color: '#9ca3af', fontSize: 14 },
 
-  // Inscription
   boutonInscription:  { alignItems: 'center' },
   inscriptionTexte:   { fontSize: 14, color: '#6b7280' },
   inscriptionLien:    { color: '#1a6b3c', fontWeight: 'bold' },
