@@ -11,39 +11,47 @@ import Svg, { Path, Circle, Line, Polyline, Rect, Polygon } from 'react-native-s
 
 const { width: SW } = Dimensions.get('window');
 
-// ─── PALETTE ─────────────────────────────────────────────────────────────────
+// ─── PALETTE 
 const C = {
-  primary:  '#065f46',
-  bg:       '#f4f6f4',
-  white:    '#ffffff',
-  danger:   '#dc2626',
-  warn:     '#d97706',
-  success:  '#059669',
-  textLight:'#9ca3af',
-  textMid:  '#6b7280',
-  textDark: '#111827',
+  primary:   '#065f46',
+  bg:        '#f4f6f4',
+  white:     '#ffffff',
+  danger:    '#dc2626',
+  warn:      '#d97706',
+  success:   '#059669',
+  teal:      '#0d9488',
+  blue:      '#0369a1',
+  violet:    '#7c3aed',
+  amber:     '#b45309',
+  textLight: '#9ca3af',
+  textMid:   '#6b7280',
+  textDark:  '#111827',
 };
 
 // ─── SVG ICONS ────────────────────────────────────────────────────────────────
 const Icon = ({ name, size = 22, color = C.primary, sw = 1.8 }) => {
   const p = { stroke: color, strokeWidth: sw, fill: 'none', strokeLinecap: 'round', strokeLinejoin: 'round' };
   const map = {
-    home:     <Svg width={size} height={size} viewBox="0 0 24 24"><Path {...p} d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><Polyline {...p} points="9 22 9 12 15 12 15 22"/></Svg>,
-    mapPin:   <Svg width={size} height={size} viewBox="0 0 24 24"><Path {...p} d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><Circle {...p} cx="12" cy="10" r="3"/></Svg>,
-    phone:    <Svg width={size} height={size} viewBox="0 0 24 24"><Path {...p} d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.4 2 2 0 0 1 3.6 1.22h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.82a16 16 0 0 0 6.29 6.29l.95-.95a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></Svg>,
-    user:     <Svg width={size} height={size} viewBox="0 0 24 24"><Path {...p} d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><Circle {...p} cx="12" cy="7" r="4"/></Svg>,
-    menu:     <Svg width={size} height={size} viewBox="0 0 24 24"><Line {...p} x1="3" y1="6" x2="21" y2="6"/><Line {...p} x1="3" y1="12" x2="21" y2="12"/><Line {...p} x1="3" y1="18" x2="21" y2="18"/></Svg>,
-    bell:     <Svg width={size} height={size} viewBox="0 0 24 24"><Path {...p} d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><Path {...p} d="M13.73 21a2 2 0 0 1-3.46 0"/></Svg>,
-    logout:   <Svg width={size} height={size} viewBox="0 0 24 24"><Path {...p} d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><Polyline {...p} points="16 17 21 12 16 7"/><Line {...p} x1="21" y1="12" x2="9" y2="12"/></Svg>,
-    settings: <Svg width={size} height={size} viewBox="0 0 24 24"><Circle {...p} cx="12" cy="12" r="3"/><Path {...p} d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></Svg>,
-    chevron:  <Svg width={size} height={size} viewBox="0 0 24 24"><Polyline {...p} points="9 18 15 12 9 6"/></Svg>,
-    syringe:  <Svg width={size} height={size} viewBox="0 0 24 24"><Line {...p} x1="3" y1="21" x2="7" y2="17"/><Line {...p} x1="7" y1="17" x2="16" y2="8"/><Line {...p} x1="16" y1="8" x2="20" y2="4"/><Line {...p} x1="18" y1="2" x2="22" y2="6"/><Line {...p} x1="6" y1="15" x2="15" y2="6"/><Line {...p} x1="9" y1="18" x2="18" y2="9"/></Svg>,
-    clipboard:<Svg width={size} height={size} viewBox="0 0 24 24"><Path {...p} d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><Rect {...p} x="8" y="2" width="8" height="4" rx="1" ry="1"/><Line {...p} x1="9" y1="12" x2="15" y2="12"/><Line {...p} x1="9" y1="16" x2="12" y2="16"/></Svg>,
+    home:      <Svg width={size} height={size} viewBox="0 0 24 24"><Path {...p} d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><Polyline {...p} points="9 22 9 12 15 12 15 22"/></Svg>,
+    mapPin:    <Svg width={size} height={size} viewBox="0 0 24 24"><Path {...p} d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><Circle {...p} cx="12" cy="10" r="3"/></Svg>,
+    phone:     <Svg width={size} height={size} viewBox="0 0 24 24"><Path {...p} d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.4 2 2 0 0 1 3.6 1.22h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.82a16 16 0 0 0 6.29 6.29l.95-.95a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></Svg>,
+    user:      <Svg width={size} height={size} viewBox="0 0 24 24"><Path {...p} d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><Circle {...p} cx="12" cy="7" r="4"/></Svg>,
+    menu:      <Svg width={size} height={size} viewBox="0 0 24 24"><Line {...p} x1="3" y1="6" x2="21" y2="6"/><Line {...p} x1="3" y1="12" x2="21" y2="12"/><Line {...p} x1="3" y1="18" x2="21" y2="18"/></Svg>,
+    bell:      <Svg width={size} height={size} viewBox="0 0 24 24"><Path {...p} d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><Path {...p} d="M13.73 21a2 2 0 0 1-3.46 0"/></Svg>,
+    logout:    <Svg width={size} height={size} viewBox="0 0 24 24"><Path {...p} d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><Polyline {...p} points="16 17 21 12 16 7"/><Line {...p} x1="21" y1="12" x2="9" y2="12"/></Svg>,
+    settings:  <Svg width={size} height={size} viewBox="0 0 24 24"><Circle {...p} cx="12" cy="12" r="3"/><Path {...p} d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></Svg>,
+    chevron:   <Svg width={size} height={size} viewBox="0 0 24 24"><Polyline {...p} points="9 18 15 12 9 6"/></Svg>,
+    syringe:   <Svg width={size} height={size} viewBox="0 0 24 24"><Line {...p} x1="3" y1="21" x2="7" y2="17"/><Line {...p} x1="7" y1="17" x2="16" y2="8"/><Line {...p} x1="16" y1="8" x2="20" y2="4"/><Line {...p} x1="18" y1="2" x2="22" y2="6"/><Line {...p} x1="6" y1="15" x2="15" y2="6"/><Line {...p} x1="9" y1="18" x2="18" y2="9"/></Svg>,
+    clipboard: <Svg width={size} height={size} viewBox="0 0 24 24"><Path {...p} d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><Rect {...p} x="8" y="2" width="8" height="4" rx="1" ry="1"/><Line {...p} x1="9" y1="12" x2="15" y2="12"/><Line {...p} x1="9" y1="16" x2="12" y2="16"/></Svg>,
+    // ── NOUVELLES ICÔNES ──
+    calendar:  <Svg width={size} height={size} viewBox="0 0 24 24"><Rect {...p} x="3" y="4" width="18" height="18" rx="2" ry="2"/><Line {...p} x1="16" y1="2" x2="16" y2="6"/><Line {...p} x1="8" y1="2" x2="8" y2="6"/><Line {...p} x1="3" y1="10" x2="21" y2="10"/></Svg>,
+    history:   <Svg width={size} height={size} viewBox="0 0 24 24"><Path {...p} d="M3 3v5h5"/><Path {...p} d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><Line {...p} x1="12" y1="7" x2="12" y2="12"/><Line {...p} x1="12" y1="12" x2="16" y2="14"/></Svg>,
+    carnet:    <Svg width={size} height={size} viewBox="0 0 24 24"><Path {...p} d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z"/></Svg>,
   };
   return map[name] || null;
 };
 
-// ─── HELPERS ──────────────────────────────────────────────────────────────────
+// ─── HELPERS ─
 const formatDate = (d) => {
   if (!d) return '—';
   const dt = new Date(d);
@@ -56,19 +64,30 @@ const formatDateCourt = (d) => {
   if (isNaN(dt)) return d;
   return dt.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
 };
+
+// ── ÂGE : entier uniquement, jamais de virgule/décimale ──────────────────────
 const calculerAge = (dn) => {
   if (!dn) return '';
-  // Calcul entier uniquement — pas de décimale
   const now       = new Date();
   const naissance = new Date(dn);
   const diffMs    = now - naissance;
   const jours     = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  const mois      = Math.floor(jours / 30);
-  const ans       = Math.floor(jours / 365);
-  if (jours < 30)  return `${jours}j`;
-  if (mois < 24)   return `${mois} mois`;
+  const moisTotal = Math.floor(jours / 30.4375);   // moyenne plus précise
+  const ans       = Math.floor(jours / 365.25);
+
+  if (jours < 1)    return 'Aujourd\'hui';
+  if (jours < 30)   return `${jours} jour${jours > 1 ? 's' : ''}`;
+  if (moisTotal < 12) return `${moisTotal} mois`;
+  if (ans === 1) {
+    const moisReste = moisTotal - 12;
+    return moisReste > 0 ? `1 an et ${moisReste} mois` : '1 an';
+  }
+  // Pour 2 ans et plus : afficher aussi les mois restants si < 6 mois de bonus
+  const moisReste = moisTotal - (ans * 12);
+  if (moisReste > 0 && moisReste < 6) return `${ans} ans et ${moisReste} mois`;
   return `${ans} ans`;
 };
+
 const statutVaccin = (v) => {
   if (v.date_administration) return 'fait';
   if (!v.date_prevue) return 'a_venir';
@@ -91,24 +110,24 @@ const Initiales = ({ prenom = '', nom = '', size = 38, bg = C.primary, color = '
   </View>
 );
 
-// ─── COMPOSANT PRINCIPAL 
+// ─── COMPOSANT PRINCIPAL ─────────────────────────────────────────────────────
 export default function DashboardParent({ navigation }) {
-  const [loading, setLoading]             = useState(true);
-  const [refreshing, setRefreshing]       = useState(false);
-  const [parent, setParent]               = useState(null);
-  const [enfants, setEnfants]             = useState([]);
-  const [enfantActif, setEnfantActif]     = useState(null);
-  const [vaccins, setVaccins]             = useState([]);
-  const [loadingVacc, setLoadingVacc]     = useState(false);
-  const [logoutModal, setLogoutModal]     = useState(false);
-  const [drawerOpen, setDrawerOpen]       = useState(false);
-  const [activeNav, setActiveNav]         = useState('home');
+  const [loading, setLoading]         = useState(true);
+  const [refreshing, setRefreshing]   = useState(false);
+  const [parent, setParent]           = useState(null);
+  const [enfants, setEnfants]         = useState([]);
+  const [enfantActif, setEnfantActif] = useState(null);
+  const [vaccins, setVaccins]         = useState([]);
+  const [loadingVacc, setLoadingVacc] = useState(false);
+  const [logoutModal, setLogoutModal] = useState(false);
+  const [drawerOpen, setDrawerOpen]   = useState(false);
+  const [activeNav, setActiveNav]     = useState('home');
 
   const fadeAnim    = useRef(new Animated.Value(0)).current;
   const drawerAnim  = useRef(new Animated.Value(-SW * 0.75)).current;
   const overlayAnim = useRef(new Animated.Value(0)).current;
 
-  // ── Drawer 
+  // ── Drawer ─
   const openDrawer = () => {
     setDrawerOpen(true);
     Animated.parallel([
@@ -123,7 +142,7 @@ export default function DashboardParent({ navigation }) {
     ]).start(() => setDrawerOpen(false));
   };
 
-  // ── Chargement 
+  // ── Chargement vaccins ───────────────────────────────────────────────────────
   const chargerVaccins = async (enfantId, tokenParam) => {
     setLoadingVacc(true);
     try {
@@ -207,7 +226,7 @@ export default function DashboardParent({ navigation }) {
     <SafeAreaView style={S.container}>
       <StatusBar barStyle="light-content" backgroundColor={C.primary} />
 
-      {/* ══ HEADER  */}
+      {/* ══ HEADER ══════════════════════════════════════════════════════════ */}
       <View style={S.header}>
         <View style={S.headerTop}>
           <View style={{ flex: 1 }}>
@@ -215,12 +234,10 @@ export default function DashboardParent({ navigation }) {
             <Text style={S.hdrName}>{prenom} {nom}</Text>
           </View>
           <View style={S.hdrActions}>
-            {/* Cloche notifications */}
             <TouchableOpacity style={S.hdrBtn}>
               <Icon name="bell" size={20} color="#fff" />
               <View style={S.notifDot} />
             </TouchableOpacity>
-            {/* Hamburger menu — comme Agent et Responsable */}
             <TouchableOpacity style={S.hdrBtn} onPress={openDrawer}>
               <Icon name="menu" size={22} color="#fff" />
             </TouchableOpacity>
@@ -245,7 +262,7 @@ export default function DashboardParent({ navigation }) {
         )}
       </View>
 
-      {/* ══ CONTENU  */}
+      {/* ══ CONTENU ═════════════════════════════════════════════════════════ */}
       <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
         <ScrollView
           style={S.scroll}
@@ -254,17 +271,16 @@ export default function DashboardParent({ navigation }) {
         >
           {enfantActif ? (
             <>
-              {/* Carte enfant */}
+              {/* ── Carte enfant ─────────────────────────────────────────── */}
               <View style={S.card}>
                 <View style={S.ficheHead}>
-                  <View style={S.ficheAvatar}>
-                    <Initiales prenom={enfantActif.prenom} nom={enfantActif.nom} size={44} bg="#ecfdf5" color={C.primary} fontSize={15} />
-                  </View>
+                  
                   <View style={{ flex: 1 }}>
                     <Text style={S.ficheNom}>{enfantActif.prenom} {enfantActif.nom}</Text>
                     <Text style={S.ficheMeta}>
                       {enfantActif.sexe === 'F' ? 'Née' : 'Né'} le {formatDate(enfantActif.date_naissance)}
                     </Text>
+                    {/* ÂGE — entier, jamais de décimale */}
                     <Text style={S.ficheAge}>{calculerAge(enfantActif.date_naissance)}</Text>
                   </View>
                   <View style={[S.badgeStatut, aUnRetard ? S.badgeRetard : S.badgeOk]}>
@@ -288,7 +304,7 @@ export default function DashboardParent({ navigation }) {
                 </View>
               </View>
 
-              {/* Prochain vaccin */}
+              {/* ── Prochain vaccin ──────────────────────────────────────── */}
               {prochainVaccin && (
                 <View style={S.nextCard}>
                   <View style={S.nextLeft}>
@@ -304,25 +320,58 @@ export default function DashboardParent({ navigation }) {
                 </View>
               )}
 
-              {/* Actions rapides */}
-              <View style={S.actionsRow}>
-                <TouchableOpacity
-                  style={[S.actionBtn, { backgroundColor: C.primary }]}
-                  onPress={() => navigation.navigate('CarnetVaccinal', { enfantId: enfantActif.id, enfant: enfantActif })}
-                >
-                  <Icon name="clipboard" size={20} color="#fff" />
-                  <Text style={S.actionBtnT}>Carnet vaccinal</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[S.actionBtn, { backgroundColor: '#0369a1' }]}
-                  onPress={() => navigation.navigate('CentresProches')}
-                >
-                  <Icon name="mapPin" size={20} color="#fff" />
-                  <Text style={S.actionBtnT}>Centre proche</Text>
-                </TouchableOpacity>
+              {/* ── Actions rapides — grille 2×2 ─────────────────────────── */}
+              <View style={S.actionsGrid}>
+
+                {/* Ligne 1 */}
+                <View style={S.actionsRow}>
+                  {/* Rendez-vous (remplace Carnet vaccinal) */}
+                  <TouchableOpacity
+                    style={[S.actionBtn, { backgroundColor: C.primary }]}
+                    onPress={() => navigation.navigate('RendezVous', { enfantId: enfantActif.id, enfant: enfantActif })}
+                    activeOpacity={0.85}
+                  >
+                    <Icon name="calendar" size={20} color="#fff" />
+                    <Text style={S.actionBtnT}>Rendez-vous</Text>
+                  </TouchableOpacity>
+
+                  {/* Mon relais (remplace Centre proche) */}
+                  <TouchableOpacity
+                    style={[S.actionBtn, { backgroundColor: C.teal }]}
+                    onPress={() => navigation.navigate('MonRelais')}
+                    activeOpacity={0.85}
+                  >
+                    <Icon name="phone" size={20} color="#fff" />
+                    <Text style={S.actionBtnT}>Mon relais</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Ligne 2 */}
+                <View style={S.actionsRow}>
+                  {/* Rappels */}
+                  <TouchableOpacity
+                    style={[S.actionBtn, { backgroundColor: C.violet }]}
+                    onPress={() => navigation.navigate('Rappels', { enfantId: enfantActif.id })}
+                    activeOpacity={0.85}
+                  >
+                    <Icon name="bell" size={20} color="#fff" />
+                    <Text style={S.actionBtnT}>Rappels</Text>
+                  </TouchableOpacity>
+
+                  {/* Historique */}
+                  <TouchableOpacity
+                    style={[S.actionBtn, { backgroundColor: C.amber }]}
+                    onPress={() => navigation.navigate('HistoriqueVaccins', { enfantId: enfantActif.id, enfant: enfantActif })}
+                    activeOpacity={0.85}
+                  >
+                    <Icon name="history" size={20} color="#fff" />
+                    <Text style={S.actionBtnT}>Historique</Text>
+                  </TouchableOpacity>
+                </View>
+
               </View>
 
-              {/* Carnet vaccinal */}
+              {/* ── Carnet vaccinal inline ───────────────────────────────── */}
               <View style={[S.card, { marginTop: 8 }]}>
                 <View style={S.secHead}>
                   <View style={S.secLine} />
@@ -347,11 +396,11 @@ export default function DashboardParent({ navigation }) {
                 ) : vaccins.length === 0 ? (
                   <View style={S.vide}><Text style={S.videT}>Aucune vaccination enregistrée</Text></View>
                 ) : vaccins.map((v, i) => {
-                  const statut      = statutVaccin(v);
-                  const estFait     = statut === 'fait';
-                  const estRetard   = statut === 'retard';
-                  const chipBg      = estFait ? '#d1fae5' : estRetard ? '#fee2e2' : '#fef3c7';
-                  const chipColor   = estFait ? C.success : estRetard ? C.danger : C.warn;
+                  const statut       = statutVaccin(v);
+                  const estFait      = statut === 'fait';
+                  const estRetard    = statut === 'retard';
+                  const chipBg       = estFait ? '#d1fae5' : estRetard ? '#fee2e2' : '#fef3c7';
+                  const chipColor    = estFait ? C.success : estRetard ? C.danger : C.warn;
                   const bordureColor = chipColor;
                   return (
                     <View key={i} style={[S.vaccinLigne, { borderLeftColor: bordureColor }, i < vaccins.length - 1 && S.vaccinSep]}>
@@ -386,13 +435,14 @@ export default function DashboardParent({ navigation }) {
         </ScrollView>
       </Animated.View>
 
-      {/* ══ NAVBAR BOTTOM avec icônes SVG  */}
+      {/* ══ NAVBAR BOTTOM ═══════════════════════════════════════════════════ */}
+      {/* Centres → remplacé par Carnet */}
       <View style={S.navbar}>
         {[
-          { key: 'home',    icon: 'home',    label: 'Accueil',  action: () => setActiveNav('home') },
-          { key: 'centres', icon: 'mapPin',  label: 'Centres',  action: () => { setActiveNav('centres'); navigation.navigate('CentresProches'); } },
-          { key: 'contact', icon: 'phone',   label: 'Contact',  action: () => { setActiveNav('contact'); navigation.navigate('Contact'); } },
-          { key: 'profil',  icon: 'user',    label: 'Profil',   action: () => { setActiveNav('profil'); navigation.navigate('Profil'); } },
+          { key: 'home',   icon: 'home',    label: 'Accueil', action: () => setActiveNav('home') },
+          { key: 'carnet', icon: 'carnet',  label: 'Carnet',  action: () => { setActiveNav('carnet'); navigation.navigate('CarnetVaccinal', { enfantId: enfantActif?.id, enfant: enfantActif }); } },
+          { key: 'contact',icon: 'phone',   label: 'Contact', action: () => { setActiveNav('contact'); navigation.navigate('Contact'); } },
+          { key: 'profil', icon: 'user',    label: 'Profil',  action: () => { setActiveNav('profil'); navigation.navigate('Profil'); } },
         ].map(item => (
           <TouchableOpacity key={item.key} style={S.navItem} onPress={item.action} activeOpacity={0.8}>
             <Icon
@@ -467,40 +517,43 @@ export default function DashboardParent({ navigation }) {
   );
 }
 
-// ─── STYLES ──────────────────────────────────────────────────────────────────
+// ─── STYLES ─
 const S = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
   loader:    { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.bg },
   loaderT:   { marginTop: 12, color: C.primary, fontSize: 13, fontWeight: '500' },
   scroll:    { flex: 1 },
 
-  // Header
-  header:    { backgroundColor: C.primary, paddingHorizontal: 16, paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 12 : 14, paddingBottom: 14 },
-  headerTop: { flexDirection: 'row', alignItems: 'center' },
-  hdrGreeting:{ fontSize: 11, color: 'rgba(255,255,255,0.6)', letterSpacing: 0.3 },
-  hdrName:   { fontSize: 18, fontWeight: '600', color: '#fff', marginTop: 1 },
-  hdrActions:{ flexDirection: 'row', alignItems: 'center', gap: 8 },
-  hdrBtn:    { padding: 8, position: 'relative' },
-  notifDot:  { position: 'absolute', top: 6, right: 6, width: 7, height: 7, backgroundColor: '#f87171', borderRadius: 4, borderWidth: 1.5, borderColor: C.primary },
+  // ── Header
+  header:      { backgroundColor: C.primary, paddingHorizontal: 16, paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 12 : 14, paddingBottom: 14 },
+  headerTop:   { flexDirection: 'row', alignItems: 'center' },
+  hdrGreeting: { fontSize: 11, color: 'rgba(255,255,255,0.6)', letterSpacing: 0.3 },
+  hdrName:     { fontSize: 18, fontWeight: '600', color: '#fff', marginTop: 1 },
+  hdrActions:  { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  hdrBtn:      { padding: 8, position: 'relative' },
+  notifDot:    { position: 'absolute', top: 6, right: 6, width: 7, height: 7, backgroundColor: '#f87171', borderRadius: 4, borderWidth: 1.5, borderColor: C.primary },
 
-  chipEnfant:      { borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.35)', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 6, marginRight: 8 },
-  chipEnfantActif: { backgroundColor: '#fff', borderColor: '#fff' },
-  chipEnfantT:     { fontSize: 12, fontWeight: '500', color: 'rgba(255,255,255,0.8)' },
-  chipEnfantTActif:{ color: C.primary, fontWeight: '700' },
+  chipEnfant:       { borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.35)', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 6, marginRight: 8 },
+  chipEnfantActif:  { backgroundColor: '#fff', borderColor: '#fff' },
+  chipEnfantT:      { fontSize: 12, fontWeight: '500', color: 'rgba(255,255,255,0.8)' },
+  chipEnfantTActif: { color: C.primary, fontWeight: '700' },
 
+  // ── Card générique
   card: { backgroundColor: C.white, borderRadius: 14, padding: 14, marginHorizontal: 12, marginTop: 12, borderWidth: 0.5, borderColor: '#e5e7eb', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1 },
 
+  // ── Fiche enfant
   ficheHead:   { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
   ficheAvatar: { marginRight: 12 },
   ficheNom:    { fontSize: 15, fontWeight: '600', color: C.textDark },
   ficheMeta:   { fontSize: 11, color: C.textLight, marginTop: 2 },
-  ficheAge:    { fontSize: 12, fontWeight: '500', color: C.primary, marginTop: 2 },
+  ficheAge:    { fontSize: 12, fontWeight: '600', color: C.primary, marginTop: 3 },
   badgeStatut: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 20, paddingHorizontal: 9, paddingVertical: 4, marginLeft: 6 },
   badgeOk:     { backgroundColor: '#ecfdf5' },
   badgeRetard: { backgroundColor: '#fef2f2' },
   badgeDot:    { width: 6, height: 6, borderRadius: 3 },
   badgeStatutT:{ fontSize: 10, fontWeight: '600' },
 
+  // ── Barre progression
   progSection: { borderTopWidth: 0.5, borderTopColor: '#f3f4f6', paddingTop: 12 },
   progRow:     { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
   progLabel:   { fontSize: 11, color: C.textMid },
@@ -509,6 +562,7 @@ const S = StyleSheet.create({
   progFill:    { height: '100%', borderRadius: 4 },
   progSub:     { fontSize: 10, color: C.textLight },
 
+  // ── Prochain vaccin
   nextCard:  { backgroundColor: '#ecfdf5', borderRadius: 14, padding: 14, marginHorizontal: 12, marginTop: 8, flexDirection: 'row', alignItems: 'center', borderLeftWidth: 3, borderLeftColor: C.success, borderWidth: 0.5, borderColor: '#a7f3d0' },
   nextLeft:  { flex: 1 },
   nextLabel: { fontSize: 10, color: C.textMid, textTransform: 'uppercase', letterSpacing: 0.4 },
@@ -517,10 +571,13 @@ const S = StyleSheet.create({
   nextBadge: { backgroundColor: C.primary, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5 },
   nextBadgeT:{ fontSize: 11, fontWeight: '600', color: '#fff' },
 
-  actionsRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 12, marginTop: 8 },
-  actionBtn:  { flex: 1, borderRadius: 12, paddingVertical: 14, alignItems: 'center', gap: 6, flexDirection: 'row', justifyContent: 'center' },
-  actionBtnT: { color: '#fff', fontSize: 12, fontWeight: '600' },
+  // ── Actions rapides 2×2
+  actionsGrid: { paddingHorizontal: 12, marginTop: 8, gap: 8 },
+  actionsRow:  { flexDirection: 'row', gap: 8 },
+  actionBtn:   { flex: 1, borderRadius: 12, paddingVertical: 14, alignItems: 'center', gap: 6, flexDirection: 'row', justifyContent: 'center' },
+  actionBtnT:  { color: '#fff', fontSize: 12, fontWeight: '600' },
 
+  // ── Section carnet inline
   secHead:  { flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 8 },
   secLine:  { width: 3, height: 14, backgroundColor: C.primary, borderRadius: 2 },
   secHeadT: { fontSize: 10, fontWeight: '700', color: C.textDark, letterSpacing: 0.5 },
@@ -530,12 +587,12 @@ const S = StyleSheet.create({
   legendDot:  { width: 7, height: 7, borderRadius: 4 },
   legendT:    { fontSize: 10, color: C.textMid },
 
-  vaccinLigne:{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 11, paddingLeft: 10, borderLeftWidth: 3 },
-  vaccinSep:  { borderBottomWidth: 0.5, borderBottomColor: '#f3f4f6' },
-  vaccinNom:  { fontSize: 13, fontWeight: '500', color: C.textDark },
-  vaccinMeta: { fontSize: 10, color: C.textLight, marginTop: 2 },
-  chipVacc:   { borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4, marginLeft: 8 },
-  chipVaccT:  { fontSize: 10, fontWeight: '600' },
+  vaccinLigne: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 11, paddingLeft: 10, borderLeftWidth: 3 },
+  vaccinSep:   { borderBottomWidth: 0.5, borderBottomColor: '#f3f4f6' },
+  vaccinNom:   { fontSize: 13, fontWeight: '500', color: C.textDark },
+  vaccinMeta:  { fontSize: 10, color: C.textLight, marginTop: 2 },
+  chipVacc:    { borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4, marginLeft: 8 },
+  chipVaccT:   { fontSize: 10, fontWeight: '600' },
 
   emptyState: { alignItems: 'center', paddingVertical: 60, paddingHorizontal: 30, gap: 12 },
   emptyTitle: { fontSize: 16, fontWeight: '600', color: C.textDark },
@@ -544,14 +601,14 @@ const S = StyleSheet.create({
   vide:  { alignItems: 'center', paddingVertical: 20 },
   videT: { color: C.textLight, fontSize: 12 },
 
-  // Navbar avec icônes SVG
-  navbar:       { flexDirection: 'row', backgroundColor: C.white, paddingBottom: Platform.OS === 'ios' ? 24 : 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#f0f0f0', shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 6 },
-  navItem:      { flex: 1, alignItems: 'center', gap: 3, position: 'relative' },
-  navLabel:     { fontSize: 10, color: C.textLight, fontWeight: '500' },
-  navLabelActif:{ color: C.primary, fontWeight: '700' },
-  navDot:       { position: 'absolute', top: -8, width: 4, height: 4, borderRadius: 2, backgroundColor: C.primary },
+  // ── Navbar
+  navbar:        { flexDirection: 'row', backgroundColor: C.white, paddingBottom: Platform.OS === 'ios' ? 24 : 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#f0f0f0', shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 6 },
+  navItem:       { flex: 1, alignItems: 'center', gap: 3, position: 'relative' },
+  navLabel:      { fontSize: 10, color: C.textLight, fontWeight: '500' },
+  navLabelActif: { color: C.primary, fontWeight: '700' },
+  navDot:        { position: 'absolute', top: -8, width: 4, height: 4, borderRadius: 2, backgroundColor: C.primary },
 
-  // Drawer
+  // ── Drawer
   drawerOverlay:   { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(6,95,70,0.25)' },
   drawer:          { position: 'absolute', top: 0, bottom: 0, left: 0, width: SW * 0.75, backgroundColor: C.white, shadowColor: '#000', shadowOffset: { width: 4, height: 0 }, shadowOpacity: 0.12, shadowRadius: 16, elevation: 12 },
   drawerHead:      { backgroundColor: C.primary, paddingTop: Platform.OS === 'ios' ? 56 : (StatusBar.currentHeight || 24) + 24, paddingBottom: 24, paddingHorizontal: 20 },
@@ -565,7 +622,7 @@ const S = StyleSheet.create({
   drawerLogout:    { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 20, paddingVertical: 16, marginTop: 'auto', borderTopWidth: 1, borderTopColor: '#f0f0f0' },
   drawerLogoutT:   { fontSize: 15, color: C.danger, fontWeight: '600' },
 
-  // Modal
+  // ── Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', padding: 24 },
   modalCard:    { backgroundColor: C.white, borderRadius: 20, padding: 28, width: '100%', maxWidth: 340, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.15, shadowRadius: 24, elevation: 12 },
   modalIco:     { width: 64, height: 64, borderRadius: 32, backgroundColor: '#fee2e2', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
