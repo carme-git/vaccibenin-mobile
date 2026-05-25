@@ -18,7 +18,13 @@ import DashboardAgent from './DashboardAgent';
 import DashboardResponsable from './DashboardResponsable';
 import DashboardRelais from './DashboardRelais';
 import FicheEnfant from './FicheEnfant';
-
+import CarnetVaccinal from './CarnetVaccinal';
+import RendezVous from './RendezVous';
+import Rappels from './Rappels';
+import HistoriqueVaccins from './HistoriqueVaccins';
+import AjouterEnfant from './AjouterEnfant';
+import ObservationsRelais from './ObservationsRelais';
+import EnfantsRelais from './EnfantsRelais';
 import { API_URL } from './config';
 
 const Stack = createNativeStackNavigator();
@@ -186,6 +192,14 @@ export default function App() {
         <Stack.Screen name="DashboardRelais"      component={DashboardRelais} />
         <Stack.Screen name="DashboardResponsable" component={DashboardResponsable} />
         <Stack.Screen name="FicheEnfant"          component={FicheEnfant} />
+        <Stack.Screen name="CarnetVaccinal"    component={CarnetVaccinal} />
+        <Stack.Screen name="RendezVous"        component={RendezVous} />
+        <Stack.Screen name="Rappels"           component={Rappels} />
+        <Stack.Screen name="HistoriqueVaccins" component={HistoriqueVaccins} />
+        <Stack.Screen name="AjouterEnfant"     component={AjouterEnfant}/>
+        <Stack.Screen name="ObservationsRelais" component={ObservationsRelais} />
+        <Stack.Screen name="EnfantsRelais"      component={EnfantsRelais} />
+        
       </Stack.Navigator>
     </NavigationContainer>
   );
@@ -223,7 +237,7 @@ function EcranConnexion({ navigation, apiUrl }) {
         data = await reponse.json();
         if (data.success) {
           succes    = true;
-          typeFinal = type; // ← on retient le type qui a fonctionné
+          typeFinal = type;
           break;
         }
       }
@@ -237,7 +251,7 @@ function EcranConnexion({ navigation, apiUrl }) {
       await AsyncStorage.setItem('token',      data.token);
       await AsyncStorage.setItem('role',       data.role);
       await AsyncStorage.setItem('user',       JSON.stringify(data.user));
-      await AsyncStorage.setItem('type_users', typeFinal); // ← CORRECTION CLÉ
+      await AsyncStorage.setItem('type_users', typeFinal);
 
       const role = data.role;
       if (role === 'agent_sante')
@@ -413,7 +427,7 @@ function EcranConnexion({ navigation, apiUrl }) {
   );
 }
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
+// ─── Styles ─
 const styles = StyleSheet.create({
   container:        { flex: 1, backgroundColor: '#1a6b3c' },
   scrollContent:    { flexGrow: 1 },

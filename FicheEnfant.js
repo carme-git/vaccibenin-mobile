@@ -268,7 +268,7 @@ export default function FicheEnfant({ route, navigation }) {
   );
 }
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
+// ─── Styles ─
 const VERT = '#2e7d32';
 const S = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f6f5' },

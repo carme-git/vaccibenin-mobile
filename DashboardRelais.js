@@ -2,16 +2,18 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   SafeAreaView, StatusBar, RefreshControl, ActivityIndicator,
-  Linking, Animated, Modal, Dimensions, Platform,
+  Linking, Animated, Modal, Dimensions, Platform, Share,
+  TextInput as TextInputComp,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
+import RNPrint from 'react-native-print';
 import { API_URL } from './config';
 import Svg, { Path, Circle, Line, Polyline, Rect } from 'react-native-svg';
 
 const { width: SW } = Dimensions.get('window');
 
-// ─── PALETTE ─────────────────────────────────────────────────────────────────
+// ─── PALETTE
 const C = {
   primary:   '#065f46',
   accent:    '#10b981',
@@ -25,12 +27,9 @@ const C = {
   success:   '#059669',
 };
 
-// ─── ICÔNES SVG ──────────────────────────────────────────────────────────────
+// ─── ICÔNES SVG
 const Icon = ({ name, size = 22, color = C.primary, sw = 1.8 }) => {
-  const p = {
-    stroke: color, strokeWidth: sw, fill: 'none',
-    strokeLinecap: 'round', strokeLinejoin: 'round',
-  };
+  const p = { stroke: color, strokeWidth: sw, fill: 'none', strokeLinecap: 'round', strokeLinejoin: 'round' };
   const map = {
     home:     <Svg width={size} height={size} viewBox="0 0 24 24"><Path {...p} d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><Polyline {...p} points="9 22 9 12 15 12 15 22"/></Svg>,
     users:    <Svg width={size} height={size} viewBox="0 0 24 24"><Path {...p} d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><Circle {...p} cx="9" cy="7" r="4"/><Path {...p} d="M23 21v-2a4 4 0 0 0-3-3.87"/><Path {...p} d="M16 3.13a4 4 0 0 1 0 7.75"/></Svg>,
@@ -46,16 +45,16 @@ const Icon = ({ name, size = 22, color = C.primary, sw = 1.8 }) => {
     chevron:  <Svg width={size} height={size} viewBox="0 0 24 24"><Polyline {...p} points="9 18 15 12 9 6"/></Svg>,
     user:     <Svg width={size} height={size} viewBox="0 0 24 24"><Path {...p} d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><Circle {...p} cx="12" cy="7" r="4"/></Svg>,
     check:    <Svg width={size} height={size} viewBox="0 0 24 24"><Polyline {...p} points="20 6 9 17 4 12"/></Svg>,
+    share:    <Svg width={size} height={size} viewBox="0 0 24 24"><Circle {...p} cx="18" cy="5" r="3"/><Circle {...p} cx="6" cy="12" r="3"/><Circle {...p} cx="18" cy="19" r="3"/><Line {...p} x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><Line {...p} x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></Svg>,
+    printer:  <Svg width={size} height={size} viewBox="0 0 24 24"><Polyline {...p} points="6 9 6 2 18 2 18 9"/><Path {...p} d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><Rect {...p} x="6" y="14" width="12" height="8"/></Svg>,
   };
   return map[name] || null;
 };
 
-// ─── HELPERS ─────────────────────────────────────────────────────────────────
+// ─── HELPERS
 const formatDate = (d) => {
   if (!d) return '—';
-  return new Date(d).toLocaleDateString('fr-FR', {
-    day: '2-digit', month: 'short', year: 'numeric',
-  });
+  return new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
 const joursRestants = (dateStr) => {
@@ -63,13 +62,13 @@ const joursRestants = (dateStr) => {
   return Math.ceil((new Date(dateStr) - new Date()) / 86400000);
 };
 
-// ─── CHIP DÉLAI ──────────────────────────────────────────────────────────────
+// ─── CHIP DÉLAI
 const ChipDelai = ({ dateStr }) => {
   const j = joursRestants(dateStr);
   if (j === null) return null;
   const [bg, tc, txt] =
     j < 0   ? ['#fee2e2', C.danger,  `${Math.abs(j)}j retard`] :
-    j === 0 ? ['#fef3c7', C.warn,    "Aujourd'hui"]             :
+    j === 0 ? ['#fef3c7', C.warn,    "Aujourd'hui"] :
               ['#d1fae5', C.success, `J-${j}`];
   return (
     <View style={[styles.chip, { backgroundColor: bg }]}>
@@ -78,17 +77,21 @@ const ChipDelai = ({ dateStr }) => {
   );
 };
 
-// ─── CARTE ENFANT ─────────────────────────────────────────────────────────────
+// ─── CARTE ENFANT — fond coloré selon le sexe
 const CarteEnfant = ({ enfant, enRetard, onAddObservation }) => {
-  const bordure = enRetard ? C.danger : C.primary;
+  const bordure  = enRetard ? C.danger : C.primary;
+  const ageMois  = enfant.age_mois != null ? Math.floor(enfant.age_mois) : null;
+  const isFille  = (enfant.sexe || '').toLowerCase().startsWith('f');
+  const bgCarte  = isFille ? '#fce7f3' : '#dbeafe';
+
   return (
-    <View style={[styles.carteEnfant, { borderLeftColor: bordure }]}>
+    <View style={[styles.carteEnfant, { borderLeftColor: bordure, backgroundColor: bgCarte }]}>
       {/* En-tête */}
       <View style={styles.carteHead}>
         <View style={{ flex: 1 }}>
           <Text style={styles.eNom}>{enfant.prenom} {enfant.nom}</Text>
           <Text style={styles.eCode}>
-            {enfant.age_mois != null ? `${enfant.age_mois} mois` : '—'}
+            {ageMois != null ? `${ageMois} mois` : '—'}
             {enfant.code ? `  ·  ${enfant.code}` : ''}
           </Text>
         </View>
@@ -128,7 +131,6 @@ const CarteEnfant = ({ enfant, enRetard, onAddObservation }) => {
           )}
         </View>
       )}
-
       {enfant.mere_tuteur?.adresse && (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 }}>
           <Icon name="mapPin" size={12} color={C.textLight} />
@@ -137,11 +139,7 @@ const CarteEnfant = ({ enfant, enRetard, onAddObservation }) => {
       )}
 
       {/* Bouton observation */}
-      <TouchableOpacity
-        style={styles.obsBtn}
-        onPress={() => onAddObservation(enfant)}
-        activeOpacity={0.8}
-      >
+      <TouchableOpacity style={styles.obsBtn} onPress={() => onAddObservation(enfant)} activeOpacity={0.8}>
         <Icon name="plus" size={14} color={C.primary} />
         <Text style={styles.obsBtnT}>Ajouter une observation</Text>
       </TouchableOpacity>
@@ -149,9 +147,9 @@ const CarteEnfant = ({ enfant, enRetard, onAddObservation }) => {
   );
 };
 
-// ─── MODAL OBSERVATION ───────────────────────────────────────────────────────
+// ─── MODAL OBSERVATION
 const ModalObservation = ({ visible, enfant, onClose, onSubmit, loading }) => {
-  const [texte, setTexte] = React.useState('');
+  const [texte, setTexte]     = React.useState('');
   const [details, setDetails] = React.useState('');
 
   const handleSubmit = () => {
@@ -169,16 +167,6 @@ const ModalObservation = ({ visible, enfant, onClose, onSubmit, loading }) => {
           {enfant && (
             <Text style={styles.modalSub}>{enfant.prenom} {enfant.nom}</Text>
           )}
-
-          <Text style={styles.modalLabel}>Observation *</Text>
-          <View style={styles.modalInput}>
-            <Text
-              style={styles.modalTextarea}
-              onPress={() => {}}
-            />
-          </View>
-
-          {/* Utilise TextInput natif */}
           <View style={{ marginBottom: 12 }}>
             <Text style={styles.modalLabel}>Observation *</Text>
             <TextInputComp
@@ -191,7 +179,6 @@ const ModalObservation = ({ visible, enfant, onClose, onSubmit, loading }) => {
               placeholderTextColor="#9ca3af"
             />
           </View>
-
           <View style={{ marginBottom: 20 }}>
             <Text style={styles.modalLabel}>Détails (optionnel)</Text>
             <TextInputComp
@@ -204,12 +191,8 @@ const ModalObservation = ({ visible, enfant, onClose, onSubmit, loading }) => {
               placeholderTextColor="#9ca3af"
             />
           </View>
-
           <View style={styles.modalBtns}>
-            <TouchableOpacity
-              style={[styles.modalBtn, { backgroundColor: '#f3f4f6' }]}
-              onPress={onClose}
-            >
+            <TouchableOpacity style={[styles.modalBtn, { backgroundColor: '#f3f4f6' }]} onPress={onClose}>
               <Text style={[styles.modalBtnT, { color: C.textMid }]}>Annuler</Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -229,57 +212,51 @@ const ModalObservation = ({ visible, enfant, onClose, onSubmit, loading }) => {
   );
 };
 
-// Import TextInput séparé pour éviter conflit de nom
-import { TextInput as TextInputComp } from 'react-native';
-
-// ─── COMPOSANT PRINCIPAL ──────────────────────────────────────────────────────
+// ─── COMPOSANT PRINCIPAL
 export default function DashboardRelais({ navigation }) {
-  const [loading, setLoading]           = useState(true);
-  const [refreshing, setRefreshing]     = useState(false);
-  const [relaisUser, setRelaisUser]     = useState(null);
-  const [stats, setStats]               = useState({});
-  const [rdvAVenir, setRdvAVenir]       = useState([]);
-  const [enfantsRetard, setEnfantsRetard] = useState([]);
-  const [onglet, setOnglet]             = useState('rdv');
-  const [activeNav, setActiveNav]       = useState('home');
-  const [drawerOpen, setDrawerOpen]     = useState(false);
-  const [logoutModal, setLogoutModal]   = useState(false);
-  const [obsModal, setObsModal]         = useState(false);
-  const [enfantSelectionne, setEnfantSelectionne] = useState(null);
-  const [obsLoading, setObsLoading]     = useState(false);
+  const [loading, setLoading]               = useState(true);
+  const [refreshing, setRefreshing]         = useState(false);
+  const [relaisUser, setRelaisUser]         = useState(null);
+  const [stats, setStats]                   = useState({});
+  const [rdvAVenir, setRdvAVenir]           = useState([]);
+  const [enfantsRetard, setEnfantsRetard]   = useState([]);
+  const [onglet, setOnglet]                 = useState('rdv');
+  const [activeNav, setActiveNav]           = useState('home');
+  const [drawerOpen, setDrawerOpen]         = useState(false);
+  const [logoutModal, setLogoutModal]       = useState(false);
+  const [obsModal, setObsModal]             = useState(false);
+  const [enfantSelectionne, setEnfantSel]   = useState(null);
+  const [obsLoading, setObsLoading]         = useState(false);
 
   const fadeAnim    = useRef(new Animated.Value(0)).current;
   const drawerAnim  = useRef(new Animated.Value(-SW * 0.75)).current;
   const overlayAnim = useRef(new Animated.Value(0)).current;
 
-  // ── Drawer ────────────────────────────────────────
+  // ── Drawer
   const openDrawer = () => {
     setDrawerOpen(true);
     Animated.parallel([
-      Animated.spring(drawerAnim,  { toValue: 0, useNativeDriver: true, tension: 65, friction: 11 }),
+      Animated.spring(drawerAnim,  { toValue: 0,           useNativeDriver: true, tension: 65, friction: 11 }),
       Animated.timing(overlayAnim, { toValue: 1, duration: 250, useNativeDriver: true }),
     ]).start();
   };
   const closeDrawer = () => {
     Animated.parallel([
-      Animated.spring(drawerAnim,  { toValue: -SW * 0.75, useNativeDriver: true, tension: 65, friction: 11 }),
+      Animated.spring(drawerAnim,  { toValue: -SW * 0.75,  useNativeDriver: true, tension: 65, friction: 11 }),
       Animated.timing(overlayAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
     ]).start(() => setDrawerOpen(false));
   };
 
-  // ── Chargement ────────────────────────────────────
+  // ── Chargement
   const charger = async () => {
     try {
       const token = await AsyncStorage.getItem('token');
       const h = { Authorization: `Bearer ${token}` };
-
       const [profilRes, dashRes] = await Promise.all([
         axios.get(`${API_URL}/profil`,           { headers: h }),
         axios.get(`${API_URL}/relais/dashboard`, { headers: h }),
       ]);
-
       setRelaisUser(profilRes.data?.user || profilRes.data);
-
       if (dashRes.data?.success) {
         const d = dashRes.data;
         setStats(d.stats || {});
@@ -298,23 +275,117 @@ export default function DashboardRelais({ navigation }) {
   useEffect(() => { charger(); }, []);
   const onRefresh = () => { setRefreshing(true); charger(); };
 
-  // ── Ajouter observation ────────────────────────────
-  const handleAddObservation = (enfant) => {
-    setEnfantSelectionne(enfant);
-    setObsModal(true);
+  // ── Partager liste terrain
+  const handlePartagerListe = async () => {
+    const liste = onglet === 'rdv' ? rdvAVenir : enfantsRetard;
+    const titre = onglet === 'rdv'
+      ? `📋 LISTE RDV À VENIR — ${stats.centre_nom || 'Centre'}`
+      : `⚠️ LISTE ENFANTS EN RETARD — ${stats.centre_nom || 'Centre'}`;
+    const date = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
+
+    const lignes = liste.map((e, i) => {
+      const ageMois = e.age_mois != null ? Math.floor(e.age_mois) : '—';
+      const vaccin  = e.prochain_vaccin?.vaccin || '—';
+      const dateRdv = formatDate(e.prochain_vaccin?.date_prevue);
+      const j       = joursRestants(e.prochain_vaccin?.date_prevue);
+      const delai   = j == null ? '' : j < 0 ? ` (${Math.abs(j)}j retard)` : j === 0 ? " (Aujourd'hui)" : ` (J-${j})`;
+      const mere    = e.mere_tuteur?.nom || '—';
+      const tel     = e.mere_tuteur?.telephone || '—';
+      const adresse = e.mere_tuteur?.adresse || '—';
+      return `${i + 1}. ${e.prenom} ${e.nom} — ${ageMois} mois\n   Vaccin : ${vaccin}\n   RDV    : ${dateRdv}${delai}\n   Mère   : ${mere}  |  Tél : ${tel}\n   Adresse: ${adresse}`;
+    }).join('\n\n');
+
+    const message = `${titre}\nDate : ${date}\nTotal : ${liste.length} enfant(s)\n\n${lignes}\n\n— VacciBenin`;
+    try {
+      await Share.share({ message, title: titre });
+    } catch (err) {
+      console.error('Partage:', err);
+    }
   };
 
+  // ── Imprimer liste terrain
+  const handleImprimerListe = async () => {
+    const liste = onglet === 'rdv' ? rdvAVenir : enfantsRetard;
+    const titre = onglet === 'rdv'
+      ? `LISTE RDV À VENIR — ${stats.centre_nom || 'Centre'}`
+      : `LISTE ENFANTS EN RETARD — ${stats.centre_nom || 'Centre'}`;
+    const date = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
+
+    const lignesHtml = liste.map((e, i) => {
+      const ageMois = e.age_mois != null ? Math.floor(e.age_mois) : '—';
+      const vaccin  = e.prochain_vaccin?.vaccin || '—';
+      const dateRdv = formatDate(e.prochain_vaccin?.date_prevue);
+      const j       = joursRestants(e.prochain_vaccin?.date_prevue);
+      const delai   = j == null ? '' : j < 0
+        ? `<span style="color:#dc2626">${Math.abs(j)}j retard</span>`
+        : j === 0 ? `<span style="color:#d97706">Aujourd'hui</span>`
+        : `<span style="color:#059669">J-${j}</span>`;
+      const mere    = e.mere_tuteur?.nom || '—';
+      const tel     = e.mere_tuteur?.telephone || '—';
+      const adresse = e.mere_tuteur?.adresse || '—';
+      // fond PDF selon sexe
+      const isFille = (e.sexe || '').toLowerCase().startsWith('f');
+      const bg      = isFille ? '#fce7f3' : '#dbeafe';
+      return `
+        <tr style="background:${bg}">
+          <td style="padding:8px 10px;font-weight:600;color:#0f2d23">${i + 1}. ${e.prenom} ${e.nom}</td>
+          <td style="padding:8px 10px;color:#3d6b58">${ageMois} mois</td>
+          <td style="padding:8px 10px;color:#1d4ed8;font-weight:600">${vaccin}</td>
+          <td style="padding:8px 10px">${dateRdv} &nbsp; ${delai}</td>
+          <td style="padding:8px 10px;color:#3d6b58">${mere}</td>
+          <td style="padding:8px 10px;color:#3d6b58">${tel}</td>
+          <td style="padding:8px 10px;color:#6b9e87">${adresse}</td>
+        </tr>`;
+    }).join('');
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8"/>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; color: #0f2d23; }
+          h1   { font-size: 16px; color: #065f46; margin-bottom: 4px; }
+          p    { font-size: 12px; color: #6b9e87; margin: 0 0 16px 0; }
+          table { width: 100%; border-collapse: collapse; font-size: 11px; }
+          th   { background: #065f46; color: white; padding: 8px 10px; text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+          td   { border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+          .footer { margin-top: 20px; font-size: 10px; color: #6b9e87; text-align: right; }
+        </style>
+      </head>
+      <body>
+        <h1>${titre}</h1>
+        <p>Date d'impression : ${date} &nbsp;|&nbsp; Total : ${liste.length} enfant(s) &nbsp;|&nbsp; VacciBenin</p>
+        <table>
+          <thead>
+            <tr>
+              <th>Enfant</th><th>Âge</th><th>Vaccin</th><th>Date RDV</th><th>Mère / Tuteur</th><th>Téléphone</th><th>Adresse</th>
+            </tr>
+          </thead>
+          <tbody>${lignesHtml}</tbody>
+        </table>
+        <div class="footer">Généré par VacciBenin — ${date}</div>
+      </body>
+      </html>`;
+
+    try {
+      await RNPrint.print({ html });
+    } catch (err) {
+      console.error('Impression:', err);
+    }
+  };
+
+  // ── Observation
+  const handleAddObservation = (enfant) => { setEnfantSel(enfant); setObsModal(true); };
   const handleSubmitObservation = async (idEnfant, observation, details) => {
     setObsLoading(true);
     try {
       const token = await AsyncStorage.getItem('token');
-      await axios.post(`${API_URL}/relais/observations`, {
-        id_enfant: idEnfant,
-        observation,
-        details,
-      }, { headers: { Authorization: `Bearer ${token}` } });
+      await axios.post(`${API_URL}/relais/observations`, { id_enfant: idEnfant, observation, details }, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       setObsModal(false);
-      setEnfantSelectionne(null);
+      setEnfantSel(null);
     } catch (e) {
       console.error('Observation:', e?.response?.data || e.message);
     } finally {
@@ -322,17 +393,25 @@ export default function DashboardRelais({ navigation }) {
     }
   };
 
-  // ── Déconnexion ────────────────────────────────────
+  // ── Déconnexion
   const handleLogout = async () => {
     setLogoutModal(false);
     await AsyncStorage.multiRemove(['token', 'role', 'user', 'type_users']);
     navigation.replace('Connexion');
   };
 
+  // ── Navigation navbar
+  const handleNav = (key) => {
+    setActiveNav(key);
+    if (key === 'enfants') navigation.navigate('EnfantsRelais');
+    if (key === 'obs')     navigation.navigate('ObservationsRelais');
+    if (key === 'profil')  navigation.navigate('Profil');
+  };
+
   if (loading) return (
     <View style={styles.loader}>
       <ActivityIndicator size="large" color={C.primary} />
-      <Text style={styles.loaderT}>Chargement…</Text>
+      <Text style={styles.loaderT}>Chargement...</Text>
     </View>
   );
 
@@ -345,12 +424,12 @@ export default function DashboardRelais({ navigation }) {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={C.primary} />
 
-      {/* ══ HEADER ════════════════════════════════════ */}
+      {/* ══ HEADER */}
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
           <Text style={styles.hdrGreeting}>Bonjour</Text>
           <Text style={styles.hdrName}>{prenom} {nom}</Text>
-          {(stats.centre_nom) && (
+          {stats.centre_nom && (
             <View style={styles.centreRow}>
               <Icon name="mapPin" size={11} color="rgba(255,255,255,0.7)" />
               <Text style={styles.centreTxt}>{stats.centre_nom}</Text>
@@ -368,14 +447,12 @@ export default function DashboardRelais({ navigation }) {
         </View>
       </View>
 
-      {/* ══ CONTENU ═══════════════════════════════════ */}
+      {/* ══ CONTENU */}
       <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
         <ScrollView
           style={styles.scroll}
           showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[C.primary]} />
-          }
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[C.primary]} />}
         >
           {/* Stats 3 cartes */}
           <View style={styles.statsRow}>
@@ -394,7 +471,7 @@ export default function DashboardRelais({ navigation }) {
             ))}
           </View>
 
-          {/* Observations aujourd'hui */}
+          {/* Observations */}
           <View style={styles.obsRow}>
             <View style={[styles.obsCard, { backgroundColor: C.primary + '12' }]}>
               <Icon name="eye" size={16} color={C.primary} />
@@ -404,13 +481,28 @@ export default function DashboardRelais({ navigation }) {
             </View>
           </View>
 
-          {/* Toggle RDV / En retard */}
+          {/* Liste de terrain */}
           <View style={styles.card}>
-            <View style={styles.secHead}>
-              <View style={styles.secLine} />
-              <Text style={styles.secHeadT}>LISTE DE TERRAIN</Text>
+            <View style={styles.secHeadRow}>
+              <View style={styles.secHead}>
+                <View style={styles.secLine} />
+                <Text style={styles.secHeadT}>LISTE DE TERRAIN</Text>
+              </View>
+              {liste.length > 0 && (
+                <View style={styles.actionBtns}>
+                  <TouchableOpacity style={styles.shareBtn} onPress={handlePartagerListe} activeOpacity={0.8}>
+                    <Icon name="share" size={13} color={C.primary} />
+                    <Text style={styles.shareBtnT}>Partager</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.printBtn} onPress={handleImprimerListe} activeOpacity={0.8}>
+                    <Icon name="printer" size={13} color={C.white} />
+                    <Text style={styles.printBtnT}>Imprimer</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
 
+            {/* Toggle */}
             <View style={styles.toggleRow}>
               <TouchableOpacity
                 style={[styles.toggleBtn, onglet === 'rdv' && styles.toggleBtnActive]}
@@ -418,13 +510,9 @@ export default function DashboardRelais({ navigation }) {
                 activeOpacity={0.8}
               >
                 <Icon name="calendar" size={14} color={onglet === 'rdv' ? C.white : C.textMid} />
-                <Text style={[styles.toggleT, onglet === 'rdv' && styles.toggleTA]}>
-                  RDV à venir
-                </Text>
+                <Text style={[styles.toggleT, onglet === 'rdv' && styles.toggleTA]}>RDV à venir</Text>
                 <View style={[styles.toggleBadge, onglet === 'rdv' && { backgroundColor: 'rgba(255,255,255,0.25)' }]}>
-                  <Text style={[styles.toggleBadgeT, onglet === 'rdv' && { color: C.white }]}>
-                    {rdvAVenir.length}
-                  </Text>
+                  <Text style={[styles.toggleBadgeT, onglet === 'rdv' && { color: C.white }]}>{rdvAVenir.length}</Text>
                 </View>
               </TouchableOpacity>
 
@@ -434,38 +522,23 @@ export default function DashboardRelais({ navigation }) {
                 activeOpacity={0.8}
               >
                 <Icon name="alert" size={14} color={onglet === 'retard' ? C.white : C.textMid} />
-                <Text style={[styles.toggleT, onglet === 'retard' && styles.toggleTA]}>
-                  En retard
-                </Text>
+                <Text style={[styles.toggleT, onglet === 'retard' && styles.toggleTA]}>En retard</Text>
                 <View style={[styles.toggleBadge, onglet === 'retard' && { backgroundColor: 'rgba(255,255,255,0.25)' }]}>
-                  <Text style={[styles.toggleBadgeT, onglet === 'retard' && { color: C.white }]}>
-                    {enfantsRetard.length}
-                  </Text>
+                  <Text style={[styles.toggleBadgeT, onglet === 'retard' && { color: C.white }]}>{enfantsRetard.length}</Text>
                 </View>
               </TouchableOpacity>
             </View>
 
             {liste.length === 0 ? (
               <View style={styles.vide}>
-                <Icon
-                  name={onglet === 'rdv' ? 'calendar' : 'check'}
-                  size={36}
-                  color={C.textLight}
-                />
+                <Icon name={onglet === 'rdv' ? 'calendar' : 'check'} size={36} color={C.textLight} />
                 <Text style={styles.videT}>
-                  {onglet === 'rdv'
-                    ? 'Aucun RDV dans les 14 prochains jours'
-                    : 'Aucun enfant en retard 🎉'}
+                  {onglet === 'rdv' ? 'Aucun RDV dans les 14 prochains jours' : 'Aucun enfant en retard 🎉'}
                 </Text>
               </View>
             ) : (
               liste.map((e, i) => (
-                <CarteEnfant
-                  key={i}
-                  enfant={e}
-                  enRetard={onglet === 'retard'}
-                  onAddObservation={handleAddObservation}
-                />
+                <CarteEnfant key={i} enfant={e} enRetard={onglet === 'retard'} onAddObservation={handleAddObservation} />
               ))
             )}
           </View>
@@ -474,35 +547,23 @@ export default function DashboardRelais({ navigation }) {
         </ScrollView>
       </Animated.View>
 
-      {/* ══ NAVBAR ════════════════════════════════════ */}
+      {/* ══ NAVBAR */}
       <View style={styles.navbar}>
         {[
-          { key: 'home',    icon: 'home',     label: 'Accueil' },
-          { key: 'enfants', icon: 'users',    label: 'Enfants' },
-          { key: 'obs',     icon: 'eye',      label: 'Observations' },
-          { key: 'profil',  icon: 'user',     label: 'Profil' },
+          { key: 'home',    icon: 'home',  label: 'Accueil' },
+          { key: 'enfants', icon: 'users', label: 'Enfants' },
+          { key: 'obs',     icon: 'eye',   label: 'Observations' },
+          { key: 'profil',  icon: 'user',  label: 'Profil' },
         ].map(item => (
-          <TouchableOpacity
-            key={item.key}
-            style={styles.navItem}
-            onPress={() => setActiveNav(item.key)}
-            activeOpacity={0.8}
-          >
-            <Icon
-              name={item.icon}
-              size={22}
-              color={activeNav === item.key ? C.primary : C.textLight}
-              sw={activeNav === item.key ? 2.2 : 1.6}
-            />
-            <Text style={[styles.navLabel, activeNav === item.key && styles.navLabelActif]}>
-              {item.label}
-            </Text>
+          <TouchableOpacity key={item.key} style={styles.navItem} onPress={() => handleNav(item.key)} activeOpacity={0.8}>
+            <Icon name={item.icon} size={22} color={activeNav === item.key ? C.primary : C.textLight} sw={activeNav === item.key ? 2.2 : 1.6} />
+            <Text style={[styles.navLabel, activeNav === item.key && styles.navLabelActif]}>{item.label}</Text>
             {activeNav === item.key && <View style={styles.navDot} />}
           </TouchableOpacity>
         ))}
       </View>
 
-      {/* ══ DRAWER ════════════════════════════════════ */}
+      {/* ══ DRAWER */}
       {drawerOpen && (
         <View style={StyleSheet.absoluteFill}>
           <Animated.View style={[styles.drawerOverlay, { opacity: overlayAnim }]}>
@@ -524,8 +585,9 @@ export default function DashboardRelais({ navigation }) {
             </View>
             <View style={styles.drawerMenu}>
               {[
-                { label: 'Mon profil',    icon: 'user',  route: 'Profil' },
-                { label: 'Observations',  icon: 'eye',   route: 'Observations' },
+                { label: 'Mon profil',   icon: 'user',  route: 'Profil' },
+                { label: 'Enfants',      icon: 'users', route: 'EnfantsRelais' },
+                { label: 'Observations', icon: 'eye',   route: 'ObservationsRelais' },
               ].map(item => (
                 <TouchableOpacity
                   key={item.label}
@@ -551,26 +613,18 @@ export default function DashboardRelais({ navigation }) {
         </View>
       )}
 
-      {/* ══ MODAL DÉCONNEXION ═════════════════════════ */}
+      {/* ══ MODAL DÉCONNEXION */}
       <Modal visible={logoutModal} transparent animationType="fade" onRequestClose={() => setLogoutModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
-            <View style={styles.modalIco}>
-              <Icon name="logout" size={28} color={C.danger} />
-            </View>
+            <View style={styles.modalIco}><Icon name="logout" size={28} color={C.danger} /></View>
             <Text style={styles.modalTitle}>Déconnexion</Text>
             <Text style={styles.modalBody}>Voulez-vous vraiment vous déconnecter ?</Text>
             <View style={styles.modalBtns}>
-              <TouchableOpacity
-                style={[styles.modalBtn, { backgroundColor: '#f3f4f6' }]}
-                onPress={() => setLogoutModal(false)}
-              >
+              <TouchableOpacity style={[styles.modalBtn, { backgroundColor: '#f3f4f6' }]} onPress={() => setLogoutModal(false)}>
                 <Text style={[styles.modalBtnT, { color: C.textMid }]}>Annuler</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalBtn, { backgroundColor: C.danger }]}
-                onPress={handleLogout}
-              >
+              <TouchableOpacity style={[styles.modalBtn, { backgroundColor: C.danger }]} onPress={handleLogout}>
                 <Text style={[styles.modalBtnT, { color: C.white }]}>Déconnexion</Text>
               </TouchableOpacity>
             </View>
@@ -578,11 +632,11 @@ export default function DashboardRelais({ navigation }) {
         </View>
       </Modal>
 
-      {/* ══ MODAL OBSERVATION ════════════════════════ */}
+      {/* ══ MODAL OBSERVATION */}
       <ModalObservation
         visible={obsModal}
         enfant={enfantSelectionne}
-        onClose={() => { setObsModal(false); setEnfantSelectionne(null); }}
+        onClose={() => { setObsModal(false); setEnfantSel(null); }}
         onSubmit={handleSubmitObservation}
         loading={obsLoading}
       />
@@ -590,15 +644,15 @@ export default function DashboardRelais({ navigation }) {
   );
 }
 
-// ─── STYLES ──────────────────────────────────────────────────────────────────
+// ─── STYLES
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
-  loader:    { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.bg },
-  loaderT:   { marginTop: 12, color: C.primary, fontSize: 13, fontWeight: '500' },
-  scroll:    { flex: 1 },
+  container:  { flex: 1, backgroundColor: C.bg },
+  loader:     { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.bg },
+  loaderT:    { marginTop: 12, color: C.primary, fontSize: 13, fontWeight: '500' },
+  scroll:     { flex: 1 },
 
   // Header
-  header:      { backgroundColor: C.primary, paddingHorizontal: 16, paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 12 : 14, paddingBottom: 16 },
+  header:      { backgroundColor: C.primary, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 12 : 14, paddingBottom: 16 },
   hdrGreeting: { fontSize: 11, color: 'rgba(255,255,255,0.6)' },
   hdrName:     { fontSize: 18, fontWeight: '700', color: C.white, marginTop: 1 },
   centreRow:   { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
@@ -615,28 +669,36 @@ const styles = StyleSheet.create({
   statLbl:  { fontSize: 9, color: C.textLight, textAlign: 'center', marginTop: 2, fontWeight: '500', textTransform: 'uppercase', letterSpacing: 0.3 },
 
   // Obs row
-  obsRow:    { paddingHorizontal: 12, marginTop: 8 },
-  obsCard:   { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10 },
-  obsCardT:  { fontSize: 13, color: C.primary, fontWeight: '500' },
+  obsRow:   { paddingHorizontal: 12, marginTop: 8 },
+  obsCard:  { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10 },
+  obsCardT: { fontSize: 13, color: C.primary, fontWeight: '500' },
 
   // Card section
-  card:     { backgroundColor: C.white, borderRadius: 14, padding: 14, marginHorizontal: 12, marginTop: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1 },
-  secHead:  { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-  secLine:  { width: 3, height: 14, backgroundColor: C.primary, borderRadius: 2 },
-  secHeadT: { fontSize: 10, fontWeight: '700', color: C.textDark, letterSpacing: 0.5 },
+  card:       { backgroundColor: C.white, borderRadius: 14, padding: 14, marginHorizontal: 12, marginTop: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1 },
+  secHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  secHead:    { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  secLine:    { width: 3, height: 14, backgroundColor: C.primary, borderRadius: 2 },
+  secHeadT:   { fontSize: 10, fontWeight: '700', color: C.textDark, letterSpacing: 0.5 },
+
+  // Boutons partager / imprimer
+  actionBtns: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  shareBtn:   { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderColor: C.primary, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5 },
+  shareBtnT:  { fontSize: 12, color: C.primary, fontWeight: '600' },
+  printBtn:   { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: C.primary, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5 },
+  printBtnT:  { fontSize: 12, color: C.white, fontWeight: '600' },
 
   // Toggle
   toggleRow:       { flexDirection: 'row', gap: 8, marginBottom: 12 },
   toggleBtn:       { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 30, borderWidth: 1, borderColor: '#d1d5db', backgroundColor: C.white },
   toggleBtnActive: { backgroundColor: C.primary, borderColor: C.primary },
-  toggleBtnRetard: { backgroundColor: C.danger,  borderColor: C.danger  },
+  toggleBtnRetard: { backgroundColor: C.danger,  borderColor: C.danger },
   toggleT:         { fontSize: 13, color: C.textMid, fontWeight: '500' },
   toggleTA:        { color: C.white, fontWeight: '600' },
   toggleBadge:     { backgroundColor: '#f3f4f6', borderRadius: 12, paddingHorizontal: 7, paddingVertical: 1 },
   toggleBadgeT:    { fontSize: 11, color: C.textMid, fontWeight: '600' },
 
-  // Carte enfant
-  carteEnfant: { backgroundColor: C.white, borderRadius: 10, padding: 12, marginBottom: 8, borderLeftWidth: 3, borderWidth: 0.5, borderColor: '#e5e7eb', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.03, shadowRadius: 3, elevation: 1 },
+  // Carte enfant — backgroundColor injecté dynamiquement via isFille
+  carteEnfant: { borderRadius: 10, padding: 12, marginBottom: 8, borderLeftWidth: 3, borderWidth: 0.5, borderColor: '#e5e7eb', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.03, shadowRadius: 3, elevation: 1 },
   carteHead:   { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 4 },
   eNom:        { fontSize: 14, fontWeight: '600', color: C.textDark },
   eCode:       { fontSize: 11, color: C.textLight, marginTop: 1 },
@@ -652,7 +714,7 @@ const styles = StyleSheet.create({
   obsBtn:      { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, paddingTop: 8, borderTopWidth: 0.5, borderTopColor: '#f0f0f0' },
   obsBtnT:     { fontSize: 12, color: C.primary, fontWeight: '500' },
 
-  // Chip
+  // Chips
   chip:        { borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 },
   chipT:       { fontSize: 10, fontWeight: '600' },
   chipVaccin:  { backgroundColor: '#dbeafe', borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 },
@@ -663,11 +725,11 @@ const styles = StyleSheet.create({
   videT: { color: C.textLight, fontSize: 13 },
 
   // Navbar
-  navbar:       { flexDirection: 'row', backgroundColor: C.white, paddingBottom: Platform.OS === 'ios' ? 24 : 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#f0f0f0', elevation: 6 },
-  navItem:      { flex: 1, alignItems: 'center', gap: 3, position: 'relative' },
-  navLabel:     { fontSize: 10, color: C.textLight, fontWeight: '500' },
-  navLabelActif:{ color: C.primary, fontWeight: '700' },
-  navDot:       { position: 'absolute', top: -8, width: 4, height: 4, borderRadius: 2, backgroundColor: C.primary },
+  navbar:        { flexDirection: 'row', backgroundColor: C.white, paddingBottom: Platform.OS === 'ios' ? 24 : 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#f0f0f0', elevation: 6 },
+  navItem:       { flex: 1, alignItems: 'center', gap: 3, position: 'relative' },
+  navLabel:      { fontSize: 10, color: C.textLight, fontWeight: '500' },
+  navLabelActif: { color: C.primary, fontWeight: '700' },
+  navDot:        { position: 'absolute', top: -8, width: 4, height: 4, borderRadius: 2, backgroundColor: C.primary },
 
   // Drawer
   drawerOverlay:   { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(6,95,70,0.25)' },
@@ -693,7 +755,6 @@ const styles = StyleSheet.create({
   modalSub:     { fontSize: 13, color: C.textMid, textAlign: 'center', marginBottom: 20 },
   modalBody:    { fontSize: 14, color: C.textMid, textAlign: 'center', marginBottom: 24 },
   modalLabel:   { fontSize: 13, fontWeight: '600', color: C.textDark, marginBottom: 6 },
-  modalInput:   { display: 'none' },
   textInput:    { borderWidth: 1.5, borderColor: '#e5e7eb', borderRadius: 10, padding: 12, fontSize: 14, color: C.textDark, backgroundColor: '#f9fafb', textAlignVertical: 'top', marginBottom: 4 },
   modalBtns:    { flexDirection: 'row', gap: 12 },
   modalBtn:     { flex: 1, paddingVertical: 13, borderRadius: 12, alignItems: 'center' },

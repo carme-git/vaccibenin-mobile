@@ -52,7 +52,7 @@ const Icon = ({ name, size = 22, color = C.primary, sw = 1.8 }) => {
   return map[name] || null;
 };
 
-// ─── BADGE ────────────────────────────────────────────────────────────────────
+// ─── BADGE ───
 const Badge = ({ count }) => {
   if (!count) return null;
   return (
@@ -62,7 +62,7 @@ const Badge = ({ count }) => {
   );
 };
 
-// ─── HELPERS ──────────────────────────────────────────────────────────────────
+// ─── HELPERS ─
 const joursJ = (d) => {
   if (!d) return null;
   return Math.ceil((new Date(d) - new Date()) / 86400000);
@@ -173,7 +173,7 @@ export default function DashboardAgent() {
     }
   };
 
-  // ── Drawer ───────────────────────────────────────────────────────────────────
+  // ── Drawer ──
   const openDrawer = () => {
     setDrawerOpen(true);
     Animated.parallel([
@@ -358,7 +358,7 @@ export default function DashboardAgent() {
     </View>
   );
 
-  // ── RENDER ───────────────────────────────────────────────────────────────────
+  // ── RENDER ──
   return (
     <SafeAreaView style={S.safe}>
       <StatusBar barStyle="light-content" backgroundColor={C.primary} />
