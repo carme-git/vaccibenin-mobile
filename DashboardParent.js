@@ -40,7 +40,6 @@ const Icon = ({ name, size = 22, color = C.primary, sw = 1.8 }) => {
     syringe:   <Svg width={size} height={size} viewBox="0 0 24 24"><Line {...p} x1="3" y1="21" x2="7" y2="17"/><Line {...p} x1="7" y1="17" x2="16" y2="8"/><Line {...p} x1="16" y1="8" x2="20" y2="4"/><Line {...p} x1="18" y1="2" x2="22" y2="6"/><Line {...p} x1="6" y1="15" x2="15" y2="6"/><Line {...p} x1="9" y1="18" x2="18" y2="9"/></Svg>,
     calendar:  <Svg width={size} height={size} viewBox="0 0 24 24"><Rect {...p} x="3" y="4" width="18" height="18" rx="2"/><Line {...p} x1="16" y1="2" x2="16" y2="6"/><Line {...p} x1="8" y1="2" x2="8" y2="6"/><Line {...p} x1="3" y1="10" x2="21" y2="10"/></Svg>,
     history:   <Svg width={size} height={size} viewBox="0 0 24 24"><Path {...p} d="M3 3v5h5"/><Path {...p} d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><Line {...p} x1="12" y1="7" x2="12" y2="12"/><Line {...p} x1="12" y1="12" x2="16" y2="14"/></Svg>,
-    // ── icône "Ajouter enfant" : cercle + croix
     addChild:  <Svg width={size} height={size} viewBox="0 0 24 24"><Circle {...p} cx="12" cy="12" r="10"/><Line {...p} x1="12" y1="8" x2="12" y2="16"/><Line {...p} x1="8" y1="12" x2="16" y2="12"/></Svg>,
     carnet:    <Svg width={size} height={size} viewBox="0 0 24 24"><Path {...p} d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><Path {...p} d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></Svg>,
     check:     <Svg width={size} height={size} viewBox="0 0 24 24"><Polyline {...p} points="20 6 9 17 4 12"/></Svg>,
@@ -75,11 +74,6 @@ const calculerAge = (dn) => {
   return r > 0 && r < 6 ? `${ans} ans et ${r} mois` : `${ans} ans`;
 };
 
-// ── Statut vaccin ─────────────────────────────────────────────────────────────
-// Un vaccin est :
-//   'fait'    → date_administration renseignée
-//   'retard'  → pas fait ET date_prevue dans le passé
-//   'a_venir' → pas fait ET date_prevue dans le futur (ou pas de date)
 const statutVaccin = (v) => {
   if (v.date_administration) return 'fait';
   if (!v.date_prevue)        return 'a_venir';
@@ -108,6 +102,10 @@ export default function DashboardParent({ navigation }) {
   const [drawerOpen, setDrawerOpen]   = useState(false);
   const [activeNav, setActiveNav]     = useState('home');
 
+  // ── NOUVEAU : états notifications ─────────────────────────────────────────
+  const [notifications, setNotifications]     = useState([]);
+  const [nbNotifsNonLues, setNbNotifsNonLues] = useState(0);
+
   const fadeAnim    = useRef(new Animated.Value(0)).current;
   const drawerAnim  = useRef(new Animated.Value(-SW * 0.75)).current;
   const overlayAnim = useRef(new Animated.Value(0)).current;
@@ -126,6 +124,33 @@ export default function DashboardParent({ navigation }) {
     ]).start(() => setDrawerOpen(false));
   };
 
+  // ── NOUVEAU : charger les notifications de la mère depuis l'API ──────────
+  const chargerNotifications = async () => {
+    try {
+      const token     = await AsyncStorage.getItem('token');
+      const typeUsers = await AsyncStorage.getItem('type_users') ?? 'mere';
+      const h = { Authorization: `Bearer ${token}`, 'X-Type-Users': typeUsers };
+      const res = await axios.get(`${API_URL}/mere/notifications`, { headers: h });
+      setNotifications(res.data.notifications ?? []);
+      setNbNotifsNonLues(res.data.nb_non_lues ?? 0);
+    } catch (e) {
+      console.error('chargerNotifications:', e?.response?.data || e.message);
+    }
+  };
+
+  // ── NOUVEAU : marquer toutes les notifications comme lues ─────────────────
+  const marquerNotificationsLues = async () => {
+    try {
+      const token     = await AsyncStorage.getItem('token');
+      const typeUsers = await AsyncStorage.getItem('type_users') ?? 'mere';
+      const h = { Authorization: `Bearer ${token}`, 'X-Type-Users': typeUsers };
+      await axios.post(`${API_URL}/mere/notifications/tout-lire`, {}, { headers: h });
+      setNbNotifsNonLues(0);
+    } catch (e) {
+      console.error('marquerNotificationsLues:', e?.response?.data || e.message);
+    }
+  };
+
   // ── Charge vaccinations + rendez-vous pour un enfant ─────────────────────
   const chargerDonneesEnfant = async (enfantId, token) => {
     setLoadingVacc(true);
@@ -138,10 +163,8 @@ export default function DashboardParent({ navigation }) {
         axios.get(`${API_URL}/parent/enfants/${enfantId}/rendezvous`,   { headers: h }),
       ]);
 
-      // ── Vaccinations : on accepte tous les champs possibles ──
       const rawVacc = extraireTableau(vacRes);
       rawVacc.sort((a, b) => {
-        // faits d'abord (les plus récents), puis retard, puis à venir
         const ordre = { fait: 0, retard: 1, a_venir: 2 };
         const sA = statutVaccin(a), sB = statutVaccin(b);
         if (ordre[sA] !== ordre[sB]) return ordre[sA] - ordre[sB];
@@ -151,10 +174,8 @@ export default function DashboardParent({ navigation }) {
       });
       setVaccins(rawVacc);
 
-      // ── Rendez-vous : normalisation des champs ──
       const rawRdv = extraireTableau(rdvRes).map(r => ({
         ...r,
-        // on accepte date_rdv ou date_prevue
         date_prevue: r.date_prevue ?? r.date_rdv ?? null,
         vaccin:      r.vaccin      ?? r.nom_vaccin ?? null,
       }));
@@ -189,6 +210,10 @@ export default function DashboardParent({ navigation }) {
         setEnfantActif(liste[0]);
         await chargerDonneesEnfant(liste[0].id, token);
       }
+
+      // ── NOUVEAU : charger les notifications après les données enfant ──
+      await chargerNotifications();
+
     } catch (e) {
       console.error('DashboardParent:', e?.response?.data || e.message);
     } finally {
@@ -222,18 +247,19 @@ export default function DashboardParent({ navigation }) {
   const barColor  = pctCouv >= 90 ? C.primary : pctCouv >= 70 ? C.warn : C.danger;
   const aUnRetard = nbRetard > 0;
 
-  // Prochain vaccin : premier rdv à venir (date_prevue dans le futur)
   const now = new Date();
   const prochainRdv = rdvs.find(r => r.date_prevue && new Date(r.date_prevue) >= now);
-  // Ou sinon, premier vaccin pas encore fait
   const prochainVaccin = prochainRdv ?? vaccins.find(v => !v.date_administration);
 
-  // Rappels urgents (≤ 7 jours ou en retard)
-  const nbUrgents = rdvs.filter(r => {
+  // Rappels urgents locaux (≤ 7 jours ou en retard)
+  const nbUrgentsLocal = rdvs.filter(r => {
     if (!r.date_prevue) return false;
     const j = Math.ceil((new Date(r.date_prevue) - now) / 86400000);
     return j <= 7;
   }).length + nbRetard;
+
+  // ── NOUVEAU : badge total = notifications API + urgents locaux ───────────
+  const nbBadgeTotal = nbNotifsNonLues + nbUrgentsLocal;
 
   if (loading) return (
     <View style={S.loader}>
@@ -246,10 +272,21 @@ export default function DashboardParent({ navigation }) {
   const nom       = parent?.nom    ?? '';
   const initiales = (prenom[0] ?? '').toUpperCase() + (nom[0] ?? '').toUpperCase();
 
-  // ── Raccourci navigation sécurisé ────────────────────────────────────────
   const goTo = (screen, params = {}) => {
     if (!enfantActif && (screen !== 'AjouterEnfant')) return;
     navigation.navigate(screen, params);
+  };
+
+  // ── NOUVEAU : navigation vers Rappels avec les notifications passées ──────
+  const allerAuxRappels = () => {
+    if (!enfantActif) return;
+    // Marquer comme lues quand la mère ouvre les rappels
+    marquerNotificationsLues();
+    navigation.navigate('Rappels', {
+      enfantId:      enfantActif.id,
+      enfant:        enfantActif,
+      notifications: notifications,   // ← on passe les notifs API
+    });
   };
 
   return (
@@ -264,13 +301,12 @@ export default function DashboardParent({ navigation }) {
             <Text style={S.hdrName}>{prenom} {nom}</Text>
           </View>
           <View style={S.hdrActions}>
-            {/* Cloche avec badge urgent */}
-            <TouchableOpacity style={S.hdrBtn}
-              onPress={() => enfantActif && goTo('Rappels', { enfantId: enfantActif.id, enfant: enfantActif })}>
+            {/* ── NOUVEAU : cloche avec badge combiné (API + local) ── */}
+            <TouchableOpacity style={S.hdrBtn} onPress={allerAuxRappels}>
               <Icon name="bell" size={20} color="#fff" />
-              {nbUrgents > 0 && (
+              {nbBadgeTotal > 0 && (
                 <View style={S.notifDot}>
-                  <Text style={S.notifDotT}>{nbUrgents > 9 ? '9+' : nbUrgents}</Text>
+                  <Text style={S.notifDotT}>{nbBadgeTotal > 9 ? '9+' : nbBadgeTotal}</Text>
                 </View>
               )}
             </TouchableOpacity>
@@ -293,12 +329,6 @@ export default function DashboardParent({ navigation }) {
                 </Text>
               </TouchableOpacity>
             ))}
-            {/* Bouton rapide ajouter enfant */}
-            <TouchableOpacity style={S.chipAjouter}
-              onPress={() => navigation.navigate('AjouterEnfant', { onSuccess: charger })}>
-              <Icon name="addChild" size={13} color="rgba(255,255,255,0.7)" sw={2} />
-              <Text style={S.chipAjouterT}>Ajouter</Text>
-            </TouchableOpacity>
           </ScrollView>
         )}
       </View>
@@ -362,6 +392,19 @@ export default function DashboardParent({ navigation }) {
                 </View>
               </View>
 
+              {/* ── NOUVEAU : Bannière notifications non lues ─── */}
+              {nbNotifsNonLues > 0 && (
+                <TouchableOpacity style={S.notifBanner} activeOpacity={0.85} onPress={allerAuxRappels}>
+                  <View style={S.notifBannerIco}>
+                    <Icon name="bell" size={16} color={C.violet} sw={2} />
+                  </View>
+                  <Text style={S.notifBannerT}>
+                    {nbNotifsNonLues} nouveau{nbNotifsNonLues > 1 ? 'x' : ''} rappel{nbNotifsNonLues > 1 ? 's' : ''} vaccinal{nbNotifsNonLues > 1 ? 'aux' : ''}
+                  </Text>
+                  <Icon name="chevron" size={14} color={C.violet} sw={2} />
+                </TouchableOpacity>
+              )}
+
               {/* ── Prochain rendez-vous / vaccin ─── */}
               {prochainVaccin && (
                 <TouchableOpacity style={S.nextCard} activeOpacity={0.85}
@@ -388,8 +431,7 @@ export default function DashboardParent({ navigation }) {
 
               {/* ── Alerte retard ─── */}
               {nbRetard > 0 && (
-                <TouchableOpacity style={S.alerteCard} activeOpacity={0.85}
-                  onPress={() => goTo('Rappels', { enfantId: enfantActif.id, enfant: enfantActif })}>
+                <TouchableOpacity style={S.alerteCard} activeOpacity={0.85} onPress={allerAuxRappels}>
                   <Icon name="alert" size={18} color={C.danger} sw={2.2} />
                   <Text style={S.alerteT}>
                     {nbRetard} vaccin{nbRetard > 1 ? 's' : ''} en retard — appuyez pour voir les rappels
@@ -415,14 +457,15 @@ export default function DashboardParent({ navigation }) {
                     )}
                   </TouchableOpacity>
 
+                  {/* ── NOUVEAU : bouton Rappels avec badge combiné ── */}
                   <TouchableOpacity style={[S.actionBtn, { backgroundColor: C.violet }]}
-                    onPress={() => goTo('Rappels', { enfantId: enfantActif.id, enfant: enfantActif })}
+                    onPress={allerAuxRappels}
                     activeOpacity={0.85}>
                     <Icon name="bell" size={20} color="#fff" />
                     <Text style={S.actionBtnT}>Rappels</Text>
-                    {nbUrgents > 0 && (
+                    {nbBadgeTotal > 0 && (
                       <View style={S.actionBadge}>
-                        <Text style={S.actionBadgeT}>{nbUrgents}</Text>
+                        <Text style={S.actionBadgeT}>{nbBadgeTotal}</Text>
                       </View>
                     )}
                   </TouchableOpacity>
@@ -547,13 +590,13 @@ export default function DashboardParent({ navigation }) {
         </ScrollView>
       </Animated.View>
 
-      {/* ══ NAVBAR BOTTOM — original inchangé ══ */}
+      {/* ══ NAVBAR BOTTOM ══ */}
       <View style={S.navbar}>
         {[
-          { key: 'home',    icon: 'home',     label: 'Accueil', action: () => setActiveNav('home') },
-          { key: 'carnet',  icon: 'carnet',   label: 'Carnet',  action: () => { setActiveNav('carnet');   navigation.navigate('CarnetVaccinal', { enfantId: enfantActif?.id, enfant: enfantActif }); } },
-          { key: 'contact', icon: 'phone',    label: 'Contact', action: () => { setActiveNav('contact');  navigation.navigate('Contact'); } },
-          { key: 'profil',  icon: 'user',     label: 'Profil',  action: () => { setActiveNav('profil');   navigation.navigate('Profil'); } },
+          { key: 'home',    icon: 'home',   label: 'Accueil', action: () => setActiveNav('home') },
+          { key: 'carnet',  icon: 'carnet', label: 'Carnet',  action: () => { setActiveNav('carnet');  navigation.navigate('CarnetVaccinal', { enfantId: enfantActif?.id, enfant: enfantActif }); } },
+          { key: 'contact', icon: 'phone',  label: 'Contact', action: () => { setActiveNav('contact'); navigation.navigate('Contact'); } },
+          { key: 'profil',  icon: 'user',   label: 'Profil',  action: () => { setActiveNav('profil');  navigation.navigate('Profil'); } },
         ].map(item => (
           <TouchableOpacity key={item.key} style={S.navItem} onPress={item.action} activeOpacity={0.8}>
             <Icon
@@ -640,7 +683,6 @@ const S = StyleSheet.create({
   loaderT:   { marginTop: 12, color: C.primary, fontSize: 13, fontWeight: '500' },
   scroll:    { flex: 1 },
 
-  // Header
   header:      { backgroundColor: C.primary, paddingHorizontal: 16, paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 12 : 14, paddingBottom: 14 },
   headerTop:   { flexDirection: 'row', alignItems: 'center' },
   hdrGreeting: { fontSize: 11, color: 'rgba(255,255,255,0.6)', letterSpacing: 0.3 },
@@ -650,17 +692,18 @@ const S = StyleSheet.create({
   notifDot:    { position: 'absolute', top: 4, right: 4, backgroundColor: C.danger, borderRadius: 8, minWidth: 16, height: 16, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 3, borderWidth: 1.5, borderColor: C.primary },
   notifDotT:   { fontSize: 8, fontWeight: '800', color: '#fff' },
 
-  chipEnfant:      { borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.35)', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 6, marginRight: 8 },
-  chipEnfantActif: { backgroundColor: '#fff', borderColor: '#fff' },
-  chipEnfantT:     { fontSize: 12, fontWeight: '500', color: 'rgba(255,255,255,0.8)' },
-  chipEnfantTActif:{ color: C.primary, fontWeight: '700' },
-  chipAjouter:     { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.25)', borderStyle: 'dashed', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6, marginRight: 8 },
-  chipAjouterT:    { fontSize: 12, color: 'rgba(255,255,255,0.7)', fontWeight: '500' },
+  chipEnfant:       { borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.35)', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 6, marginRight: 8 },
+  chipEnfantActif:  { backgroundColor: '#fff', borderColor: '#fff' },
+  chipEnfantT:      { fontSize: 12, fontWeight: '500', color: 'rgba(255,255,255,0.8)' },
+  chipEnfantTActif: { color: C.primary, fontWeight: '700' },
 
-  // Card générique
+  // NOUVEAU : bannière notifications
+  notifBanner:    { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#f5f3ff', borderLeftWidth: 3, borderLeftColor: C.violet, borderRadius: 12, marginHorizontal: 12, marginTop: 10, padding: 12 },
+  notifBannerIco: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#ede9fe', justifyContent: 'center', alignItems: 'center' },
+  notifBannerT:   { flex: 1, fontSize: 13, color: C.violet, fontWeight: '600' },
+
   card: { backgroundColor: C.white, borderRadius: 14, padding: 14, marginHorizontal: 12, marginTop: 12, borderWidth: 0.5, borderColor: '#e5e7eb', elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4 },
 
-  // Fiche enfant
   ficheHead:   { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
   ficheNom:    { fontSize: 15, fontWeight: '600', color: C.textDark },
   ficheMeta:   { fontSize: 11, color: C.textLight, marginTop: 2 },
@@ -671,7 +714,6 @@ const S = StyleSheet.create({
   badgeDot:    { width: 6, height: 6, borderRadius: 3 },
   badgeStatutT:{ fontSize: 10, fontWeight: '600' },
 
-  // Progression
   progSection: { borderTopWidth: 0.5, borderTopColor: '#f3f4f6', paddingTop: 12 },
   progRow:     { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
   progLabel:   { fontSize: 11, color: C.textMid },
@@ -680,14 +722,12 @@ const S = StyleSheet.create({
   progFill:    { height: '100%', borderRadius: 4 },
   progSub:     { fontSize: 10, color: C.textLight },
 
-  // Mini stats (Reçus / En retard / À venir)
   miniStats:    { flexDirection: 'row', marginTop: 12, backgroundColor: '#f9fafb', borderRadius: 10, padding: 10 },
   miniStat:     { flex: 1, alignItems: 'center', gap: 2 },
   miniStatVal:  { fontSize: 16, fontWeight: '800' },
   miniStatLabel:{ fontSize: 9, color: C.textLight },
   miniStatSep:  { width: 1, backgroundColor: '#e5e7eb', marginVertical: 2 },
 
-  // Prochain RDV
   nextCard:  { backgroundColor: '#ecfdf5', borderRadius: 14, padding: 14, marginHorizontal: 12, marginTop: 8, flexDirection: 'row', alignItems: 'center', borderLeftWidth: 3, borderLeftColor: C.success, borderWidth: 0.5, borderColor: '#a7f3d0' },
   nextLeft:  { flex: 1 },
   nextLabel: { fontSize: 10, color: C.textMid, textTransform: 'uppercase', letterSpacing: 0.4 },
@@ -696,11 +736,9 @@ const S = StyleSheet.create({
   nextBadge: { backgroundColor: C.primary, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5, marginBottom: 4 },
   nextBadgeT:{ fontSize: 11, fontWeight: '600', color: '#fff' },
 
-  // Alerte retard
   alerteCard: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#fef2f2', borderLeftWidth: 3, borderLeftColor: C.danger, borderRadius: 12, marginHorizontal: 12, marginTop: 8, padding: 12 },
   alerteT:    { flex: 1, fontSize: 12, color: C.danger, fontWeight: '500', lineHeight: 17 },
 
-  // Actions 2×2
   actionsGrid:  { paddingHorizontal: 12, marginTop: 8, gap: 8 },
   actionsRow:   { flexDirection: 'row', gap: 8 },
   actionBtn:    { flex: 1, borderRadius: 12, paddingVertical: 14, alignItems: 'center', gap: 6, flexDirection: 'row', justifyContent: 'center', position: 'relative' },
@@ -708,7 +746,6 @@ const S = StyleSheet.create({
   actionBadge:  { position: 'absolute', top: 6, right: 8, backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: 10, minWidth: 18, height: 18, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4 },
   actionBadgeT: { fontSize: 9, fontWeight: '800', color: '#fff' },
 
-  // Section carnet inline
   secHead:     { flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 8 },
   secLine:     { width: 3, height: 14, backgroundColor: C.primary, borderRadius: 2 },
   secHeadT:    { flex: 1, fontSize: 10, fontWeight: '700', color: C.textDark, letterSpacing: 0.5 },
@@ -734,7 +771,6 @@ const S = StyleSheet.create({
   videT:    { color: C.textLight, fontSize: 13, fontWeight: '500' },
   videSubT: { color: C.textLight, fontSize: 11, textAlign: 'center', lineHeight: 16, paddingHorizontal: 20 },
 
-  // Empty state (aucun enfant)
   emptyState: { alignItems: 'center', paddingVertical: 60, paddingHorizontal: 30, gap: 14 },
   emptyIco:   { width: 80, height: 80, borderRadius: 40, backgroundColor: '#f0fdf4', justifyContent: 'center', alignItems: 'center', marginBottom: 4 },
   emptyTitle: { fontSize: 16, fontWeight: '600', color: C.textDark },
@@ -742,14 +778,12 @@ const S = StyleSheet.create({
   emptyBtn:   { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.primary, borderRadius: 12, paddingHorizontal: 20, paddingVertical: 12, marginTop: 6 },
   emptyBtnT:  { fontSize: 14, fontWeight: '700', color: '#fff' },
 
-  // Navbar — original inchangé
   navbar:        { flexDirection: 'row', backgroundColor: C.white, paddingBottom: Platform.OS === 'ios' ? 24 : 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#f0f0f0', shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 6 },
   navItem:       { flex: 1, alignItems: 'center', gap: 3, position: 'relative' },
   navLabel:      { fontSize: 10, color: C.textLight, fontWeight: '500' },
   navLabelActif: { color: C.primary, fontWeight: '700' },
   navDot:        { position: 'absolute', top: -8, width: 4, height: 4, borderRadius: 2, backgroundColor: C.primary },
 
-  // Drawer
   drawerOverlay:   { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(6,95,70,0.25)' },
   drawer:          { position: 'absolute', top: 0, bottom: 0, left: 0, width: SW * 0.75, backgroundColor: C.white, elevation: 12, shadowColor: '#000', shadowOffset: { width: 4, height: 0 }, shadowOpacity: 0.12, shadowRadius: 16 },
   drawerHead:      { backgroundColor: C.primary, paddingTop: Platform.OS === 'ios' ? 56 : (StatusBar.currentHeight || 24) + 24, paddingBottom: 24, paddingHorizontal: 20 },
@@ -763,7 +797,6 @@ const S = StyleSheet.create({
   drawerLogout:    { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 20, paddingVertical: 16, marginTop: 'auto', borderTopWidth: 1, borderTopColor: '#f0f0f0' },
   drawerLogoutT:   { fontSize: 15, color: C.danger, fontWeight: '600' },
 
-  // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', padding: 24 },
   modalCard:    { backgroundColor: C.white, borderRadius: 20, padding: 28, width: '100%', maxWidth: 340, alignItems: 'center', elevation: 12 },
   modalIco:     { width: 64, height: 64, borderRadius: 32, backgroundColor: '#fee2e2', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },

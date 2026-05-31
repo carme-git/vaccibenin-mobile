@@ -172,12 +172,7 @@ export default function AjouterEnfant({ route, navigation }) {
           contentContainerStyle={{ paddingBottom: 40 }}>
 
           {/* Info */}
-          <View style={S.infoCard}>
-            <Icon name="info" size={16} color={C.primary} sw={2} />
-            <Text style={S.infoT}>
-              L'enfant sera ajouté à votre compte et son calendrier vaccinal sera automatiquement mis en place.
-            </Text>
-          </View>
+          
 
           <View style={S.formCard}>
 
@@ -193,7 +188,7 @@ export default function AjouterEnfant({ route, navigation }) {
               champ="date_naissance"
               placeholder="jj/mm/aaaa"
               keyboardType="numeric"
-              hint="Format : jour/mois/année (ex : 08/10/2025)"
+              
             />
 
             {/* Sexe */}
@@ -201,8 +196,8 @@ export default function AjouterEnfant({ route, navigation }) {
               <Text style={S.champLabel}>Sexe *</Text>
               <View style={S.sexeRow}>
                 {[
-                  { val: 'M', label: 'Garçon', emoji: '👦' },
-                  { val: 'F', label: 'Fille',  emoji: '👧' },
+                  { val: 'M', label: 'Garçon', emoji: '' },
+                  { val: 'F', label: 'Fille',  emoji: '' },
                 ].map(opt => (
                   <TouchableOpacity key={opt.val}
                     style={[S.sexeBtn, form.sexe === opt.val && S.sexeBtnActif]}

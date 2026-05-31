@@ -7,7 +7,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-import RNPrint from 'react-native-print';
+import * as Print from 'expo-print';
 import { API_URL } from './config';
 import Svg, { Path, Circle, Line, Polyline, Rect } from 'react-native-svg';
 
@@ -303,7 +303,7 @@ export default function DashboardRelais({ navigation }) {
     }
   };
 
-  // ── Imprimer liste terrain
+  // Imprimer liste terrain
   const handleImprimerListe = async () => {
     const liste = onglet === 'rdv' ? rdvAVenir : enfantsRetard;
     const titre = onglet === 'rdv'
@@ -369,7 +369,7 @@ export default function DashboardRelais({ navigation }) {
       </html>`;
 
     try {
-      await RNPrint.print({ html });
+      await Print.printAsync({ html });
     } catch (err) {
       console.error('Impression:', err);
     }
