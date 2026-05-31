@@ -76,11 +76,8 @@ const IconoCheck = ({ size = 14, color = VERT }) => (
 const IconoCheckCercle = ({ size = 56 }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
     <Circle cx="12" cy="12" r="11" fill={VERT} />
-    <Path
-      d="M6 12l4 4 8-8"
-      stroke="#fff" strokeWidth="2.2"
-      strokeLinecap="round" strokeLinejoin="round"
-    />
+    <Path d="M6 12l4 4 8-8" stroke="#fff" strokeWidth="2.2"
+      strokeLinecap="round" strokeLinejoin="round"/>
   </Svg>
 );
 
@@ -99,7 +96,7 @@ export default function ActivationCompte({ navigation }) {
   const [voirConfirm,  setVoirConfirm]  = useState(false);
   const [loading,      setLoading]      = useState(false);
 
-  // ── ÉTAPE 2 — Vérifier contact PUIS envoyer OTP ──────────────
+  // ── ÉTAPE 2 — Vérifier contact PUIS envoyer OTP ──────────
   const verifierEtEnvoyerOtp = async () => {
     if (!contact.trim()) {
       Alert.alert(
@@ -111,7 +108,7 @@ export default function ActivationCompte({ navigation }) {
     setLoading(true);
     try {
       const bodyVerif = canal === 'sms'
-        ? { telephone: contact.trim(), numero: contact.trim() }
+        ? { telephone: contact.trim() }
         : { email: contact.trim() };
 
       const resVerif = await fetch(`${API_URL}/verifier-mere`, {
@@ -120,6 +117,19 @@ export default function ActivationCompte({ navigation }) {
         body:    JSON.stringify(bodyVerif),
       });
       const dataVerif = await resVerif.json();
+
+      // ── Compte déjà activé → rediriger vers connexion ────
+      if (dataVerif.deja_active) {
+        Alert.alert(
+          'Compte déjà activé',
+          'Votre compte est déjà activé. Connectez-vous normalement ou utilisez "Mot de passe oublié" si vous l\'avez oublié.',
+          [
+            { text: 'Se connecter', onPress: () => navigation.replace('Connexion') },
+            { text: 'Annuler', style: 'cancel' },
+          ]
+        );
+        return;
+      }
 
       if (!resVerif.ok) {
         Alert.alert(
@@ -134,7 +144,7 @@ export default function ActivationCompte({ navigation }) {
       setMereId(idMere);
       setPrenom(prenomMere);
 
-      // Envoyer le code OTP
+      // ── Envoyer le code OTP ───────────────────────────────
       const resOtp = await fetch(`${API_URL}/otp/activation`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
@@ -142,12 +152,21 @@ export default function ActivationCompte({ navigation }) {
       });
       const dataOtp = await resOtp.json();
 
+      if (dataOtp.deja_active) {
+        Alert.alert(
+          'Compte déjà activé',
+          dataOtp.message,
+          [{ text: 'Se connecter', onPress: () => navigation.replace('Connexion') }]
+        );
+        return;
+      }
+
       if (!resOtp.ok) {
         Alert.alert('Erreur', dataOtp.message || "Impossible d'envoyer le code. Réessayez.");
         return;
       }
 
-      // Afficher le code directement dans l'interface pour SMS
+      // ── Afficher le code pour SMS, alerte pour email ──────
       if (canal === 'sms') {
         setCodeAffiche(dataOtp.otp_dev || '');
       } else {
@@ -168,7 +187,7 @@ export default function ActivationCompte({ navigation }) {
     }
   };
 
-  // ── Renvoyer OTP ─────────────────────────────────────────────
+  // ── Renvoyer OTP ─────────────────────────────────────────
   const renvoyerOtp = async () => {
     if (!mereId) return;
     setLoading(true);
@@ -187,6 +206,7 @@ export default function ActivationCompte({ navigation }) {
 
       if (canal === 'sms') {
         setCodeAffiche(data.otp_dev || '');
+        Alert.alert('Code renouvelé', 'Un nouveau code est affiché ci-dessous.');
       } else {
         Alert.alert('Code renvoyé ✉️', `Un nouveau code a été envoyé à ${contact.trim()}.`);
       }
@@ -197,7 +217,7 @@ export default function ActivationCompte({ navigation }) {
     }
   };
 
-  // ── ÉTAPE 3 — Valider OTP ────────────────────────────────────
+  // ── ÉTAPE 3 — Valider OTP ────────────────────────────────
   const validerOtp = async () => {
     if (otp.length !== 4) {
       Alert.alert('Code invalide', 'Le code doit contenir exactement 4 chiffres.');
@@ -225,7 +245,7 @@ export default function ActivationCompte({ navigation }) {
     }
   };
 
-  // ── ÉTAPE 4 — Activer le compte ──────────────────────────────
+  // ── ÉTAPE 4 — Activer le compte ──────────────────────────
   const activerCompte = async () => {
     if (password.length < 8) {
       Alert.alert('Trop court', 'Le mot de passe doit contenir au minimum 8 caractères.');
@@ -244,6 +264,16 @@ export default function ActivationCompte({ navigation }) {
       });
       const data = await res.json();
 
+      // ── Compte déjà activé ────────────────────────────────
+      if (data.deja_active) {
+        Alert.alert(
+          'Compte déjà activé',
+          'Ce compte a déjà été activé. Connectez-vous directement.',
+          [{ text: 'Se connecter', onPress: () => navigation.replace('Connexion') }]
+        );
+        return;
+      }
+
       if (!res.ok) {
         if (res.status === 422) {
           Alert.alert(
@@ -251,7 +281,7 @@ export default function ActivationCompte({ navigation }) {
             data.message || "Le code n'est plus valable.",
             [
               { text: 'Nouveau code', onPress: () => { setOtp(''); setCodeAffiche(''); setEtape('saisie_otp'); } },
-              { text: 'Réessayer',    style: 'cancel' },
+              { text: 'Réessayer', style: 'cancel' },
             ]
           );
         } else {
@@ -260,13 +290,13 @@ export default function ActivationCompte({ navigation }) {
         return;
       }
 
-      // Sauvegarde des données de session
-      await AsyncStorage.setItem('token',      data.token);
-      await AsyncStorage.setItem('type_users', data.type_users);
-      await AsyncStorage.setItem('role',       data.role ?? data.type_users);
-      await AsyncStorage.setItem('user',       JSON.stringify(data.user));
+      // ── Sauvegarde session + flag compte_active ───────────
+      await AsyncStorage.setItem('token',         data.token);
+      await AsyncStorage.setItem('type_users',    data.type_users);
+      await AsyncStorage.setItem('role',          data.role ?? data.type_users);
+      await AsyncStorage.setItem('user',          JSON.stringify(data.user));
+      await AsyncStorage.setItem('compte_active', 'true'); // ← guard App.js
 
-      // ✅ Afficher la page de confirmation au lieu de rediriger directement
       setEtape('succes');
 
     } catch (e) {
@@ -277,7 +307,7 @@ export default function ActivationCompte({ navigation }) {
     }
   };
 
-  // ── Stepper ──────────────────────────────────────────────────
+  // ── Stepper ──────────────────────────────────────────────
   const etapes   = ['choix', 'saisie_contact', 'saisie_otp', 'mot_de_passe'];
   const etapeNum = etape === 'succes' ? 5 : etapes.indexOf(etape) + 1;
 
@@ -299,7 +329,7 @@ export default function ActivationCompte({ navigation }) {
     </View>
   );
 
-  // ── Rendu par étape ──────────────────────────────────────────
+  // ── Rendu par étape ──────────────────────────────────────
   const renderContenu = () => {
 
     // ÉTAPE 1 — Choix du canal
@@ -413,10 +443,10 @@ export default function ActivationCompte({ navigation }) {
         <Text style={styles.cardDesc}>
           {canal === 'email'
             ? `Entrez le code à 4 chiffres reçu à ${contact.trim()}.`
-            : "Entrez le code à 4 chiffres affiché ci-dessous."}
+            : 'Entrez le code à 4 chiffres affiché ci-dessous.'}
         </Text>
 
-        {/* Affichage du code directement dans l'interface pour SMS */}
+        {/* Code affiché directement pour SMS */}
         {canal === 'sms' && codeAffiche ? (
           <View style={styles.codeBadge}>
             <Text style={styles.codeBadgeLabel}>Votre code d'activation</Text>
@@ -446,7 +476,7 @@ export default function ActivationCompte({ navigation }) {
         >
           {loading
             ? <ActivityIndicator color="#fff" />
-            : <Text style={styles.btnText}>Valider le code →</Text>
+            : <Text style={styles.btnText}>Valider le code</Text>
           }
         </TouchableOpacity>
 
@@ -517,60 +547,46 @@ export default function ActivationCompte({ navigation }) {
       </View>
     );
 
-    // ✅ ÉTAPE SUCCÈS — Page de confirmation d'activation
+    // ÉTAPE SUCCÈS
     if (etape === 'succes') return (
       <View style={styles.card}>
-        {/* Icône succès */}
         <View style={styles.successIcone}>
           <IconoCheckCercle size={72} />
         </View>
 
-        <Text style={styles.successTitre}>Compte activé ! 🎉</Text>
+        <Text style={styles.successTitre}>Compte activé !</Text>
         <Text style={styles.successDesc}>
           Bienvenue {prenom?.trim() || ''} ! Votre compte VacciBénin est maintenant actif et prêt à l'emploi.
         </Text>
 
-        {/* Récapitulatif des étapes validées */}
         <View style={styles.successRecap}>
-          <View style={styles.successRecapLigne}>
-            <View style={styles.successCheckIcon}>
-              <IconoCheck size={12} color="#fff" />
+          {[
+            'Identité vérifiée',
+            'Code OTP validé',
+            'Mot de passe créé',
+            'Compte activé avec succès',
+          ].map((ligne, i, arr) => (
+            <View key={i}>
+              <View style={styles.successRecapLigne}>
+                <View style={styles.successCheckIcon}>
+                  <IconoCheck size={12} color="#fff" />
+                </View>
+                <Text style={styles.successRecapText}>{ligne}</Text>
+              </View>
+              {i < arr.length - 1 && <View style={styles.successDivider} />}
             </View>
-            <Text style={styles.successRecapText}>Identité vérifiée</Text>
-          </View>
-          <View style={styles.successDivider} />
-          <View style={styles.successRecapLigne}>
-            <View style={styles.successCheckIcon}>
-              <IconoCheck size={12} color="#fff" />
-            </View>
-            <Text style={styles.successRecapText}>Code OTP validé</Text>
-          </View>
-          <View style={styles.successDivider} />
-          <View style={styles.successRecapLigne}>
-            <View style={styles.successCheckIcon}>
-              <IconoCheck size={12} color="#fff" />
-            </View>
-            <Text style={styles.successRecapText}>Mot de passe créé</Text>
-          </View>
-          <View style={styles.successDivider} />
-          <View style={styles.successRecapLigne}>
-            <View style={styles.successCheckIcon}>
-              <IconoCheck size={12} color="#fff" />
-            </View>
-            <Text style={styles.successRecapText}>Compte activé avec succès</Text>
-          </View>
+          ))}
         </View>
 
         <Text style={styles.successHint}>
           Vous pouvez maintenant vous connecter pour accéder à votre tableau de bord et suivre le calendrier vaccinal de votre enfant.
         </Text>
 
-        {/* Bouton de redirection vers la connexion */}
         <TouchableOpacity
           style={styles.btn}
           onPress={() => navigation.replace('Connexion')}
         >
-          <Text style={styles.btnText}>Se connecter →</Text>
+          <Text style={styles.btnText}>Se connecter</Text>
         </TouchableOpacity>
       </View>
     );
@@ -658,27 +674,16 @@ const styles = StyleSheet.create({
   },
 
   codeBadge: {
-    backgroundColor: VERT_CLAIR,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: VERT,
-    padding: 16,
-    alignItems: 'center',
-    marginBottom: 16,
+    backgroundColor: VERT_CLAIR, borderRadius: 12,
+    borderWidth: 2, borderColor: VERT,
+    padding: 16, alignItems: 'center', marginBottom: 16,
   },
   codeBadgeLabel: {
-    fontSize: 11,
-    color: VERT,
-    fontWeight: '600',
-    marginBottom: 8,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
+    fontSize: 11, color: VERT, fontWeight: '600',
+    marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1,
   },
   codeBadgeCode: {
-    fontSize: 38,
-    fontWeight: '900',
-    color: VERT,
-    letterSpacing: 14,
+    fontSize: 38, fontWeight: '900', color: VERT, letterSpacing: 14,
   },
 
   inputWrap: {
@@ -703,62 +708,16 @@ const styles = StyleSheet.create({
     fontSize: 13, marginTop: 16, textDecorationLine: 'underline',
   },
 
-  // ── Styles page succès ────────────────────────────────────
-  successIcone: {
-    alignItems: 'center',
-    marginBottom: 18,
-    marginTop: 4,
+  successIcone:      { alignItems: 'center', marginBottom: 18, marginTop: 4 },
+  successTitre:      { fontSize: 22, fontWeight: '800', color: '#1a1a1a', textAlign: 'center', marginBottom: 10 },
+  successDesc:       { fontSize: 13, color: '#555', textAlign: 'center', lineHeight: 20, marginBottom: 20 },
+  successRecap:      { backgroundColor: VERT_CLAIR, borderRadius: 14, padding: 16, marginBottom: 16 },
+  successRecapLigne: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 4 },
+  successCheckIcon:  {
+    width: 22, height: 22, borderRadius: 11,
+    backgroundColor: VERT, justifyContent: 'center', alignItems: 'center',
   },
-  successTitre: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#1a1a1a',
-    textAlign: 'center',
-    marginBottom: 10,
-  },
-  successDesc: {
-    fontSize: 13,
-    color: '#555',
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 20,
-  },
-  successRecap: {
-    backgroundColor: VERT_CLAIR,
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 16,
-  },
-  successRecapLigne: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 4,
-  },
-  successCheckIcon: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: VERT,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  successRecapText: {
-    fontSize: 13,
-    color: '#1a1a1a',
-    fontWeight: '500',
-  },
-  successDivider: {
-    height: 1,
-    backgroundColor: '#d1ead9',
-    marginVertical: 6,
-    marginLeft: 34,
-  },
-  successHint: {
-    fontSize: 12,
-    color: '#888',
-    textAlign: 'center',
-    lineHeight: 18,
-    marginBottom: 20,
-  },
+  successRecapText:  { fontSize: 13, color: '#1a1a1a', fontWeight: '500' },
+  successDivider:    { height: 1, backgroundColor: '#d1ead9', marginVertical: 6, marginLeft: 34 },
+  successHint:       { fontSize: 12, color: '#888', textAlign: 'center', lineHeight: 18, marginBottom: 20 },
 });
